@@ -432,6 +432,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
             <button onClick={copyLink} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(0,212,255,.3)",background:copied?"rgba(0,255,136,.12)":"rgba(0,212,255,.07)",color:copied?"var(--green)":"var(--cyan)",cursor:"pointer"}}>
               {copied?"✓ Copied!":"🔗 Share"}
             </button>
+            {isHost&&<button onClick={()=>setShowSettings(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(168,85,247,.4)",background:"rgba(168,85,247,.1)",color:"var(--purple)",cursor:"pointer"}}>⚙️ Settings</button>}
             <button onClick={()=>setShowFAQ(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(0,212,255,.3)",background:"rgba(0,212,255,.07)",color:"var(--cyan)",cursor:"pointer"}}>❓ FAQ</button>
             {user&&(
               <Link to="/profile" style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,var(--cyan),var(--purple))",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Orbitron,sans-serif",fontWeight:900,fontSize:".78rem",color:"#000",textDecoration:"none",flexShrink:0,overflow:"hidden"}}>
