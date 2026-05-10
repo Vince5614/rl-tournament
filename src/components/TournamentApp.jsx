@@ -492,11 +492,11 @@ function SettingsModal({settings,onChange,onClose}){
         <SettingSection icon="📡" title="Host Socials">
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <div>
-              <div style={{fontSize:".72rem",fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".4px",marginBottom:5}}>🟣 Twitch URL</div>
+              <div style={{fontSize:".72rem",fontWeight:600,color:"#bf94ff",textTransform:"uppercase",letterSpacing:".4px",marginBottom:5,display:"flex",alignItems:"center",gap:5}}><svg width="13" height="13" viewBox="0 0 24 24" fill="#bf94ff"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>Twitch URL</div>
               <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%"}} placeholder="https://twitch.tv/yourname" value={settings.hostTwitch||""} onChange={e=>set("hostTwitch",e.target.value)}/>
             </div>
             <div>
-              <div style={{fontSize:".72rem",fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".4px",marginBottom:5}}>🔴 YouTube URL</div>
+              <div style={{fontSize:".72rem",fontWeight:600,color:"#ff6b6b",textTransform:"uppercase",letterSpacing:".4px",marginBottom:5,display:"flex",alignItems:"center",gap:5}}><svg width="13" height="13" viewBox="0 0 24 24" fill="#ff6b6b"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>YouTube URL</div>
               <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%"}} placeholder="https://youtube.com/@yourname" value={settings.hostYoutube||""} onChange={e=>set("hostYoutube",e.target.value)}/>
             </div>
           </div>
@@ -778,7 +778,7 @@ function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeS
             <select style={{...C.inp,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} value={form.rank} onChange={e=>setForm(f=>({...f,rank:e.target.value}))} disabled={signupsLocked}>{RANKS.map(r=><option key={r}>{r}</option>)}</select>
             <span style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",margin:"8px 0 3px",textTransform:"uppercase",letterSpacing:".4px"}}>Peak Rank (optional)</span>
             <input style={{...C.inp,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} placeholder="e.g. Diamond III" value={form.peak} onChange={e=>setForm(f=>({...f,peak:e.target.value}))} disabled={signupsLocked}/>
-            <span style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",margin:"8px 0 3px",textTransform:"uppercase",letterSpacing:".4px"}}>🟣 Twitch (optional)</span>
+            <span style={{display:"flex",alignItems:"center",gap:5,fontSize:".72rem",fontWeight:600,color:"#bf94ff",margin:"8px 0 3px",textTransform:"uppercase",letterSpacing:".4px"}}><svg width="12" height="12" viewBox="0 0 24 24" fill="#bf94ff"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>Twitch <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional)</span></span>
             <input style={{...C.inp,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} placeholder="https://twitch.tv/username" value={form.twitch} onChange={e=>setForm(f=>({...f,twitch:e.target.value}))} disabled={signupsLocked}/>
             <button style={{...C.primaryBtn,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} onClick={addPlayer} disabled={signupsLocked}>+ Add Player</button>
             <div style={{height:1,background:"var(--border)",margin:"3px 0"}}/>
@@ -797,7 +797,7 @@ function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeS
                 <span style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",color:"var(--muted)",minWidth:20}}>#{i+1}</span>
                 <span style={{fontWeight:700,fontSize:".72rem",minWidth:100,color:rankColor(p.rank)}}>{p.rank}</span>
                 <span style={{flex:1,fontWeight:600,fontSize:".9rem"}}>{p.name}</span>
-                {p.twitch&&<a href={p.twitch.startsWith("http")?p.twitch:"https://"+p.twitch} target="_blank" rel="noopener noreferrer" style={{fontSize:".7rem",color:"#bf94ff",background:"rgba(145,70,255,.12)",border:"1px solid rgba(145,70,255,.3)",borderRadius:4,padding:"1px 6px",textDecoration:"none",whiteSpace:"nowrap"}} title="Watch on Twitch">🟣 Twitch</a>}
+                {p.twitch&&<a href={p.twitch.startsWith("http")?p.twitch:"https://"+p.twitch} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:".7rem",color:"#bf94ff",background:"rgba(145,70,255,.12)",border:"1px solid rgba(145,70,255,.3)",borderRadius:4,padding:"2px 6px",textDecoration:"none",whiteSpace:"nowrap"}} title="Watch on Twitch"><svg width="10" height="10" viewBox="0 0 24 24" fill="#bf94ff"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>Twitch</a>}
                 {isHost&&<button style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:".85rem",padding:"1px 5px",borderRadius:4}} onClick={()=>removePlayer(p.id)}>✕</button>}
               </div>
             ))}
@@ -929,7 +929,7 @@ function JoinModal({name,setName,rank,setRank,twitch,setTwitch,onSubmit,onClose,
         <select style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:12}} value={rank} onChange={e=>setRank(e.target.value)}>
           {RANKS.map(r=><option key={r}>{r}</option>)}
         </select>
-        <label style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:".4px"}}>🟣 Twitch <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional)</span></label>
+        <label style={{display:"flex",alignItems:"center",gap:5,fontSize:".72rem",fontWeight:600,color:"#bf94ff",marginBottom:4,textTransform:"uppercase",letterSpacing:".4px"}}><svg width="12" height="12" viewBox="0 0 24 24" fill="#bf94ff"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>Twitch <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,marginLeft:2}}>(optional)</span></label>
         <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:20}} placeholder="https://twitch.tv/yourname" value={twitch} onChange={e=>setTwitch(e.target.value)}/>
         <div style={{display:"flex",gap:9}}>
           <button onClick={onClose} style={{flex:1,fontFamily:"Rajdhani,sans-serif",fontWeight:700,fontSize:".9rem",textTransform:"uppercase",padding:"10px",borderRadius:8,border:"1px solid var(--border)",background:"transparent",color:"var(--text)",cursor:"pointer"}}>Cancel</button>

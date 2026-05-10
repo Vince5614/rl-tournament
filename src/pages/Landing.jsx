@@ -154,6 +154,24 @@ export default function Landing() {
                         <span>Host: <strong>{t.host_name}</strong></span>
                         <span>{t.players?.length || 0} players</span>
                         <span className="land-public-code">{t.code}</span>
+                        {t.settings?.hostTwitch && (
+                          <a href={t.settings.hostTwitch.startsWith('http') ? t.settings.hostTwitch : 'https://'+t.settings.hostTwitch}
+                            target="_blank" rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="land-social-btn land-twitch-btn">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
+                            Live
+                          </a>
+                        )}
+                        {t.settings?.hostYoutube && (
+                          <a href={t.settings.hostYoutube.startsWith('http') ? t.settings.hostYoutube : 'https://'+t.settings.hostYoutube}
+                            target="_blank" rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="land-social-btn land-yt-btn">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>
+                            Watch
+                          </a>
+                        )}
                       </div>
                     </div>
                   );
@@ -305,6 +323,10 @@ a{color:inherit;text-decoration:none;}
 .land-public-phase{font-size:.75rem;font-weight:600;color:var(--green);}
 .land-public-card-meta{display:flex;gap:16px;font-size:.78rem;color:var(--muted);flex-wrap:wrap;}
 .land-public-code{font-family:"Orbitron",sans-serif;font-size:.65rem;color:var(--cyan);letter-spacing:2px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:4px;padding:1px 7px;}
+.land-social-btn{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:.72rem;font-weight:700;text-decoration:none;transition:filter .15s;}
+.land-social-btn:hover{filter:brightness(1.2);}
+.land-twitch-btn{background:rgba(145,70,255,.15);border:1px solid rgba(145,70,255,.4);color:#bf94ff;}
+.land-yt-btn{background:rgba(255,0,0,.12);border:1px solid rgba(255,0,0,.35);color:#ff6b6b;}
 
 @media(max-width:600px){
   .land-nav{padding:12px 16px;}
