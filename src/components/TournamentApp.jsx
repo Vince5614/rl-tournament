@@ -409,7 +409,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
         </nav>
 
         <div style={{maxWidth:1200,margin:"0 auto",padding:"22px 18px 60px"}}>
-          {phase==="signup"  && <SignupView  players={players} form={form} setForm={setForm} addPlayer={addPlayer} loadDemo={loadDemo} removePlayer={id=>setPlayers(p=>p.filter(x=>x.id!==id))} closeSignups={closeSignups} settings={settings} signupsLocked={signupsLocked} isHost={isHost} tournamentCode={tournamentCode} onEditSettings={()=>setShowSettings(true)} onJoin={()=>setShowJoinModal(true)} isSignedIn={!!user}/>
+          {phase==="signup"  && <SignupView  players={players} form={form} setForm={setForm} addPlayer={addPlayer} loadDemo={loadDemo} removePlayer={id=>setPlayers(p=>p.filter(x=>x.id!==id))} closeSignups={closeSignups} settings={settings} signupsLocked={signupsLocked} isHost={isHost} tournamentCode={tournamentCode} onEditSettings={()=>setShowSettings(true)} onJoin={()=>setShowJoinModal(true)} isSignedIn={!!user}/>}
           {phase==="teams"   && <TeamsView   teams={teams} wildcards={wildcards} startTournament={startTournament} back={()=>setPhase("signup")} rename={renameTeam} settings={settings} isHost={isHost}/>}
           {phase==="bracket" && <BracketPhase groups={groups} featured={featured} spectCode={spectCode} currentRound={currentRound} upsets={upsets} openModal={openModal} bracket={bracket} settings={settings} isHost={isHost}/>}
           {phase==="results" && <ResultsView standings={standings} upsets={upsets} teams={teams} mvp={mvp} resetWinner={resetWinner} settings={settings}/>}
