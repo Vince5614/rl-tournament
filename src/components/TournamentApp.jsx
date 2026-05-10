@@ -28,7 +28,7 @@ const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
   finalsFrom:"SF", bracketType:"DE", maxTeams:8,
   deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false,
-  hostTwitch:"", hostYoutube:"",
+  hostTwitch:"", hostYoutube:"", scheduledStart:"",
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -228,6 +228,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
   const [joinRank,setJoinRank]     = useState("Diamond I");
   const [joinTwitch,setJoinTwitch] = useState("");
   const [joining,setJoining]       = useState(false);
+  const [rsvping,setRsvping]       = useState(false);
   const saveTimer                  = useRef(null);
 
   // ── Save to Supabase (debounced, host only) ──────────────────────
@@ -350,6 +351,21 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
     setShowJoinModal(false);setJoinName('');setJoinRank('Diamond I');setJoinTwitch('');setJoining(false);
   }
 
+  async function handleRSVP(){
+    if(!user||rsvping)return;
+    setRsvping(true);
+    // Always fetch fresh settings to avoid overwriting other RSVPs
+    const{data}=await supabase.from("tournaments").select("settings").eq("code",tournamentCode).single();
+    const cur=data?.settings||settings;
+    const rsvps=cur.rsvps||[];
+    const already=rsvps.some(r=>r.user_id===user.id);
+    const newRsvps=already?rsvps.filter(r=>r.user_id!==user.id):[...rsvps,{user_id:user.id,name:user.fullName||user.username||"Player"}];
+    const updated={...cur,rsvps:newRsvps};
+    await supabase.from("tournaments").update({settings:updated}).eq("code",tournamentCode);
+    setSettings(updated);
+    setRsvping(false);
+  }
+
   function getStandings(){
     if(!bracket||!gfId)return null;
     const gf=bracket.matches[gfId];if(!gf?.isComplete)return null;
@@ -397,6 +413,18 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
               </a>
             )}
           </div>
+        )}
+
+        {/* SCHEDULED COUNTDOWN BANNER */}
+        {settings.scheduledStart&&new Date(settings.scheduledStart)>new Date()&&(
+          <ScheduledBanner
+            scheduledStart={settings.scheduledStart}
+            rsvps={settings.rsvps||[]}
+            user={user}
+            isHost={isHost}
+            onRSVP={handleRSVP}
+            rsvping={rsvping}
+          />
         )}
 
         {/* SPECTATOR BANNER */}
@@ -504,6 +532,12 @@ function SettingsModal({settings,onChange,onClose}){
         </SettingSection>
         <SettingSection icon="👥" title="Team Formation"><ToggleGroup options={["snake","random"]} labels={["Balanced (Snake Draft)","Random Shuffle"]} value={settings.teamFormation||"snake"} onChange={v=>set("teamFormation",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{(settings.teamFormation||"snake")==="snake"?"Players are sorted by rank and paired to ensure every team has equal skill level.":"Teams are formed by randomly shuffling all registered players."}</div></SettingSection>
         <SettingSection icon="🌐" title="Tournament Visibility"><ToggleGroup options={[false,true]} labels={["🔒 Private (code only)","🌐 Public (browseable)"]} value={!!settings.isPublic} onChange={v=>set("isPublic",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.isPublic?"Anyone can find and join this tournament from the landing page.":"Only people with the tournament code can find this tournament."}</div></SettingSection>
+        <SettingSection icon="📅" title="Scheduled Start">
+          <input type="datetime-local" value={settings.scheduledStart||""} onChange={e=>set("scheduledStart",e.target.value)} style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",colorScheme:"dark"}}/>
+          {settings.scheduledStart&&new Date(settings.scheduledStart)>new Date()&&<div style={{fontSize:".8rem",color:"var(--cyan)",marginTop:6}}>🕐 Starts: <strong>{new Date(settings.scheduledStart).toLocaleString()}</strong></div>}
+          {settings.scheduledStart&&<button onClick={()=>set("scheduledStart","")} style={{marginTop:6,fontFamily:"Rajdhani,sans-serif",fontWeight:700,fontSize:".78rem",textTransform:"uppercase",padding:"5px 12px",borderRadius:6,border:"1px solid var(--border)",background:"transparent",color:"var(--muted)",cursor:"pointer"}}>Clear</button>}
+          <div style={{fontSize:".78rem",color:"var(--muted)",marginTop:8}}>Shows a live countdown on the tournament page. Public tournaments appear in the <strong style={{color:"var(--text)"}}>Upcoming</strong> section on the home page so players can RSVP in advance.</div>
+        </SettingSection>
         <SettingSection icon="🎮" title="Game Mode"><ToggleGroup options={["1v1","2v2","3v3","4v4"]} value={settings.gameMode} onChange={v=>set("gameMode",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.gameMode==="1v1"?"Each player competes solo.":`Players paired ${settings.gameMode} via snake draft.`}</div></SettingSection>
         <SettingSection icon="🏆" title="Bracket Type"><ToggleGroup options={["DE","SE"]} labels={["Double Elimination","Single Elimination"]} value={settings.bracketType} onChange={v=>set("bracketType",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.bracketType==="DE"?"Teams get a second chance after one loss.":"One loss and you're out."}</div></SettingSection>
         <SettingSection icon="👥" title="Max Teams"><ToggleGroup options={[4,8,16,32,0]} labels={["4","8","16","32","No limit"]} value={settings.maxTeams} onChange={v=>set("maxTeams",v)}/></SettingSection>
@@ -634,6 +668,48 @@ function ResetModal({gf,onPick}){
           <button onClick={()=>onPick("B")} style={{flex:1,fontFamily:"Rajdhani,sans-serif",fontWeight:800,fontSize:".9rem",textTransform:"uppercase",padding:"14px 9px",borderRadius:8,border:"none",background:"linear-gradient(135deg,var(--cyan),#008ab8)",color:"#000",cursor:"pointer"}}>🏆 {gf.teamB?.name}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ScheduledBanner({scheduledStart,rsvps,user,isHost,onRSVP,rsvping}){
+  const rem=useCountdown(scheduledStart);
+  if(rem===null||rem<=0)return null;
+  const hasRsvpd=user&&rsvps.some(r=>r.user_id===user.id);
+  const d=Math.floor(rem/86400000),h=Math.floor((rem%86400000)/3600000),
+        m=Math.floor((rem%3600000)/60000),s=Math.floor((rem%60000)/1000);
+  const countdown=d>0?`${d}d ${h}h ${m}m`:`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  return(
+    <div style={{background:"linear-gradient(135deg,rgba(0,212,255,.08),rgba(168,85,247,.08))",borderBottom:"1px solid rgba(0,212,255,.25)",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+      <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+        <div>
+          <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".58rem",fontWeight:700,letterSpacing:"2px",color:"var(--cyan)",textTransform:"uppercase",marginBottom:3}}>📅 Tournament Starts In</div>
+          <div style={{fontFamily:"Orbitron,sans-serif",fontSize:"1.6rem",fontWeight:900,color:"var(--gold)",letterSpacing:2,lineHeight:1}}>{countdown}</div>
+        </div>
+        <div style={{borderLeft:"1px solid var(--border)",paddingLeft:16}}>
+          <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".58rem",color:"var(--muted)",letterSpacing:"1px",textTransform:"uppercase",marginBottom:3}}>RSVPs</div>
+          <div style={{fontFamily:"Orbitron,sans-serif",fontSize:"1.1rem",fontWeight:900,color:"var(--text)"}}>{rsvps.length}</div>
+        </div>
+        {rsvps.length>0&&(
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+            {rsvps.slice(0,5).map(r=>(
+              <span key={r.user_id} style={{fontSize:".75rem",background:"rgba(0,212,255,.1)",border:"1px solid rgba(0,212,255,.2)",borderRadius:20,padding:"2px 9px",color:"var(--text)"}}>{r.name}</span>
+            ))}
+            {rsvps.length>5&&<span style={{fontSize:".75rem",color:"var(--muted)"}}>+{rsvps.length-5} more</span>}
+          </div>
+        )}
+      </div>
+      {!isHost&&user&&(
+        <button onClick={onRSVP} disabled={rsvping} style={{fontFamily:"Rajdhani,sans-serif",fontWeight:800,fontSize:".88rem",textTransform:"uppercase",letterSpacing:".5px",padding:"9px 20px",borderRadius:9,border:`1px solid ${hasRsvpd?"rgba(0,255,136,.4)":"rgba(0,212,255,.4)"}`,background:hasRsvpd?"rgba(0,255,136,.12)":"rgba(0,212,255,.1)",color:hasRsvpd?"var(--green)":"var(--cyan)",cursor:"pointer",transition:"all .18s",opacity:rsvping?.6:1}}>
+          {rsvping?"...":(hasRsvpd?"✓ RSVP'd · Cancel":"+ RSVP")}
+        </button>
+      )}
+      {!isHost&&!user&&(
+        <div style={{fontSize:".8rem",color:"var(--muted)"}}>Sign in to RSVP</div>
+      )}
+      {isHost&&(
+        <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".65rem",color:"var(--muted)",letterSpacing:"1px",textTransform:"uppercase"}}>📅 {new Date(scheduledStart).toLocaleString()}</div>
+      )}
     </div>
   );
 }

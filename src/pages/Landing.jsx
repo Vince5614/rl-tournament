@@ -6,8 +6,17 @@ import { supabase } from '../lib/supabase.js';
 const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
   finalsFrom:"SF", bracketType:"DE", maxTeams:8,
-  deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false, hostTwitch:"", hostYoutube:"",
+  deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false,
+  hostTwitch:"", hostYoutube:"", scheduledStart:"",
 };
+
+function formatCountdown(ms) {
+  if (ms <= 0) return null;
+  const d=Math.floor(ms/86400000),h=Math.floor((ms%86400000)/3600000),
+        m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
 
 export default function Landing() {
   const { isSignedIn, user } = useUser();
@@ -22,8 +31,17 @@ export default function Landing() {
   const [joining,      setJoining]      = useState(false);
   const [error,        setError]        = useState('');
   const [pending,      setPending]      = useState(null);
-  const [publicTourneys, setPublicTourneys] = useState([]);
-  const [loadingPublic,  setLoadingPublic]  = useState(true);
+  const [publicTourneys,   setPublicTourneys]   = useState([]);
+  const [upcomingTourneys, setUpcomingTourneys] = useState([]);
+  const [loadingPublic,    setLoadingPublic]    = useState(true);
+  const [tick,             setTick]             = useState(0);
+  const [rsvping,          setRsvping]          = useState(null); // code of tournament being RSVP'd
+
+  // Tick every second for countdowns
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     async function fetchPublic() {
@@ -32,13 +50,32 @@ export default function Landing() {
         .select('code,name,host_name,phase,players,settings,created_at')
         .neq('phase','results')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
+      const now = new Date();
       const pub = (data || []).filter(t => t.settings?.isPublic === true);
-      setPublicTourneys(pub);
+      setUpcomingTourneys(pub.filter(t => t.settings?.scheduledStart && new Date(t.settings.scheduledStart) > now));
+      setPublicTourneys(pub.filter(t => !t.settings?.scheduledStart || new Date(t.settings.scheduledStart) <= now));
       setLoadingPublic(false);
     }
     fetchPublic();
   }, []);
+
+  async function handleLandingRSVP(t) {
+    if (!isSignedIn) { openSignIn(); return; }
+    if (rsvping) return;
+    setRsvping(t.code);
+    const { data } = await supabase.from('tournaments').select('settings').eq('code', t.code).single();
+    const cur = data?.settings || t.settings || {};
+    const rsvps = cur.rsvps || [];
+    const already = rsvps.some(r => r.user_id === user.id);
+    const newRsvps = already
+      ? rsvps.filter(r => r.user_id !== user.id)
+      : [...rsvps, { user_id: user.id, name: user.fullName || user.username || 'Player' }];
+    const updated = { ...cur, rsvps: newRsvps };
+    await supabase.from('tournaments').update({ settings: updated }).eq('code', t.code);
+    setUpcomingTourneys(prev => prev.map(x => x.code === t.code ? { ...x, settings: updated } : x));
+    setRsvping(null);
+  }
 
   useEffect(() => {
     if (isSignedIn && pending === 'host') { setPending(null); setShowCreate(true); }
@@ -130,6 +167,72 @@ export default function Landing() {
             {error && <div className="land-error">{error}</div>}
           </div>
         </div>
+
+        {/* UPCOMING TOURNAMENTS */}
+        {upcomingTourneys.length > 0 && (
+          <div className="land-public">
+            <div className="land-public-header">
+              <span className="land-public-title">📅 Upcoming Tournaments</span>
+              <span className="land-public-sub">Register your spot before they fill up</span>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {upcomingTourneys.map(t => {
+                const ms = new Date(t.settings.scheduledStart) - new Date();
+                const countdown = formatCountdown(ms);
+                const rsvps = t.settings?.rsvps || [];
+                const hasRsvpd = isSignedIn && rsvps.some(r => r.user_id === user?.id);
+                return (
+                  <div key={t.code} className="land-upcoming-card">
+                    <div className="land-upcoming-left">
+                      <div className="land-upcoming-name">{t.name}</div>
+                      <div className="land-upcoming-meta">
+                        <span>Host: <strong>{t.host_name}</strong></span>
+                        <span>{rsvps.length} RSVP{rsvps.length !== 1 ? 's' : ''}</span>
+                        {t.settings?.hostTwitch && (
+                          <a href={t.settings.hostTwitch.startsWith('http') ? t.settings.hostTwitch : 'https://'+t.settings.hostTwitch}
+                            target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}
+                            className="land-social-btn land-twitch-btn">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
+                            Live
+                          </a>
+                        )}
+                        {t.settings?.hostYoutube && (
+                          <a href={t.settings.hostYoutube.startsWith('http') ? t.settings.hostYoutube : 'https://'+t.settings.hostYoutube}
+                            target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}
+                            className="land-social-btn land-yt-btn">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>
+                            Watch
+                          </a>
+                        )}
+                      </div>
+                      {rsvps.length > 0 && (
+                        <div style={{display:'flex',gap:5,flexWrap:'wrap',marginTop:5}}>
+                          {rsvps.slice(0,4).map(r=>(
+                            <span key={r.user_id} style={{fontSize:'.7rem',background:'rgba(0,212,255,.07)',border:'1px solid rgba(0,212,255,.18)',borderRadius:20,padding:'1px 8px',color:'#aab'}}>{r.name}</span>
+                          ))}
+                          {rsvps.length > 4 && <span style={{fontSize:'.7rem',color:'var(--muted)'}}>+{rsvps.length-4} more</span>}
+                        </div>
+                      )}
+                    </div>
+                    <div className="land-upcoming-right">
+                      <div className="land-upcoming-countdown">
+                        <div style={{fontSize:'.6rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:2}}>Starts in</div>
+                        <div style={{fontFamily:'"Orbitron",sans-serif',fontSize:'1rem',fontWeight:900,color:'var(--gold)',letterSpacing:1}}>{countdown || '—'}</div>
+                      </div>
+                      <button
+                        onClick={() => handleLandingRSVP(t)}
+                        disabled={rsvping === t.code}
+                        className={`land-rsvp-btn ${hasRsvpd ? 'land-rsvp-active' : ''}`}>
+                        {rsvping === t.code ? '...' : hasRsvpd ? '✓ RSVP\'d' : '+ RSVP'}
+                      </button>
+                      <button onClick={() => navigate(`/t/${t.code}`)} className="land-view-btn">View →</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* LIVE PUBLIC TOURNAMENTS */}
         {(loadingPublic || publicTourneys.length > 0) && (
@@ -328,6 +431,20 @@ a{color:inherit;text-decoration:none;}
 .land-twitch-btn{background:rgba(145,70,255,.15);border:1px solid rgba(145,70,255,.4);color:#bf94ff;}
 .land-yt-btn{background:rgba(255,0,0,.12);border:1px solid rgba(255,0,0,.35);color:#ff6b6b;}
 
+.land-upcoming-card{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:var(--card);border:1px solid rgba(255,215,0,.2);border-radius:12px;padding:16px 20px;transition:border-color .18s,box-shadow .18s;flex-wrap:wrap;}
+.land-upcoming-card:hover{border-color:rgba(255,215,0,.45);box-shadow:0 4px 28px rgba(255,215,0,.07);}
+.land-upcoming-left{flex:1;min-width:0;}
+.land-upcoming-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;}
+.land-upcoming-name{font-family:"Orbitron",sans-serif;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:5px;}
+.land-upcoming-meta{display:flex;gap:10px;font-size:.78rem;color:var(--muted);flex-wrap:wrap;align-items:center;}
+.land-upcoming-countdown{text-align:right;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.15);border-radius:8px;padding:7px 12px;}
+.land-rsvp-btn{font-family:"Orbitron",sans-serif;font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:7px 14px;border-radius:7px;border:1px solid rgba(0,212,255,.35);background:rgba(0,212,255,.08);color:var(--cyan);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.land-rsvp-btn:hover:not(:disabled){border-color:rgba(0,212,255,.7);background:rgba(0,212,255,.15);}
+.land-rsvp-btn:disabled{opacity:.5;cursor:not-allowed;}
+.land-rsvp-active{border-color:rgba(0,255,136,.45)!important;background:rgba(0,255,136,.1)!important;color:var(--green)!important;}
+.land-view-btn{font-family:"Orbitron",sans-serif;font-size:.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:7px 14px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.land-view-btn:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.08);}
+
 @media(max-width:600px){
   .land-nav{padding:12px 16px;}
   .land-hero{padding:48px 16px 36px;}
@@ -339,5 +456,8 @@ a{color:inherit;text-decoration:none;}
   .land-features{padding:0 16px 40px;grid-template-columns:1fr;}
   .land-public{padding:0 16px;}
   .land-modal{padding:22px 18px;}
+  .land-upcoming-card{flex-direction:column;gap:12px;}
+  .land-upcoming-right{flex-direction:row;align-items:center;justify-content:space-between;width:100%;}
+  .land-upcoming-countdown{text-align:left;}
 }
 `;
