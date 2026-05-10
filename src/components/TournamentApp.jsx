@@ -27,7 +27,7 @@ const DEMO_PLAYERS = [
 const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
   finalsFrom:"SF", bracketType:"DE", maxTeams:8,
-  deadline:"", goldenGoal:true,
+  deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false,
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -176,7 +176,7 @@ function applyResult(bracket,mid,sA,sB){
   const f=F[mid];
   if(f.w){const{id,s}=f.w;nM[id]={...nM[id],[s==="A"?"teamA":"teamB"]:winner};}
   if(f.l){const{id,s}=f.l;nM[id]={...nM[id],[s==="A"?"teamA":"teamB"]:loser};}
-  propAll(nM,F); return{...bracket,matches:nM};
+  return{...bracket,matches:nM};
 }
 
 function pickFeatured(matches,round){
@@ -284,8 +284,14 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
     if(!isHost)return;
     const min=pptFor(settings.gameMode)*2;
     if(players.length<min){alert(`Need at least ${min} players for ${settings.gameMode}!`);return;}
-    const{teams:t,wildcards:w}=snakeDraft(players,settings);
-    setTeams(t);setWildcards(w);setPhase("teams");
+    let result;
+    if(settings.teamFormation==="random"){
+      const shuffled=[...players].sort(()=>Math.random()-.5);
+      result=snakeDraft(shuffled,{...settings,teamFormation:"snake"});
+    } else {
+      result=snakeDraft(players,settings);
+    }
+    setTeams(result.teams);setWildcards(result.wildcards);setPhase("teams");
   }
   function renameTeam(id,name){
     if(!isHost)return;
@@ -395,7 +401,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
                 return(
                   <div key={p} style={{display:"flex",alignItems:"center",gap:5}}>
                     <div style={{width:7,height:7,borderRadius:"50%",background:active?"var(--cyan)":done?"var(--green)":"var(--muted)",boxShadow:active?"0 0 8px var(--cyan)":"none"}}/>
-                    <span style={{fontSize:".6rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",color:active?"var(--cyan)":done?"var(--green)":"var(--muted)"}}>{label}</span>
+                    <span className="phase-label" style={{fontSize:".6rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",color:active?"var(--cyan)":done?"var(--green)":"var(--muted)"}}>{label}</span>
                   </div>
                 );
               })}
@@ -459,6 +465,8 @@ function SettingsModal({settings,onChange,onClose}){
         <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"none",border:"none",color:"var(--muted)",fontSize:"1rem",cursor:"pointer"}}>✕</button>
         <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",color:"var(--purple)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:7}}>Advanced Settings</div>
         <div style={{fontFamily:"Orbitron,sans-serif",fontSize:"1.1rem",fontWeight:700,marginBottom:20}}>⚙️ Tournament Settings</div>
+        <SettingSection icon="👥" title="Team Formation"><ToggleGroup options={["snake","random"]} labels={["Balanced (Snake Draft)","Random Shuffle"]} value={settings.teamFormation||"snake"} onChange={v=>set("teamFormation",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{(settings.teamFormation||"snake")==="snake"?"Players are sorted by rank and paired to ensure every team has equal skill level.":"Teams are formed by randomly shuffling all registered players."}</div></SettingSection>
+        <SettingSection icon="🌐" title="Tournament Visibility"><ToggleGroup options={[false,true]} labels={["🔒 Private (code only)","🌐 Public (browseable)"]} value={!!settings.isPublic} onChange={v=>set("isPublic",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.isPublic?"Anyone can find and join this tournament from the landing page.":"Only people with the tournament code can find this tournament."}</div></SettingSection>
         <SettingSection icon="🎮" title="Game Mode"><ToggleGroup options={["1v1","2v2","3v3","4v4"]} value={settings.gameMode} onChange={v=>set("gameMode",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.gameMode==="1v1"?"Each player competes solo.":`Players paired ${settings.gameMode} via snake draft.`}</div></SettingSection>
         <SettingSection icon="🏆" title="Bracket Type"><ToggleGroup options={["DE","SE"]} labels={["Double Elimination","Single Elimination"]} value={settings.bracketType} onChange={v=>set("bracketType",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.bracketType==="DE"?"Teams get a second chance after one loss.":"One loss and you're out."}</div></SettingSection>
         <SettingSection icon="👥" title="Max Teams"><ToggleGroup options={[4,8,16,32,0]} labels={["4","8","16","32","No limit"]} value={settings.maxTeams} onChange={v=>set("maxTeams",v)}/></SettingSection>
@@ -724,7 +732,7 @@ function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeS
       )}
       {settings.deadline&&<Countdown deadline={settings.deadline}/>}
       {signupsLocked&&<div style={{background:"rgba(255,71,87,.1)",border:"1px solid rgba(255,71,87,.3)",borderRadius:9,padding:"12px 16px",marginBottom:14,color:"var(--red)",fontWeight:600,fontSize:".9rem"}}>🔒 Registration is closed.</div>}
-      <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:16}}>
+      <div className="signup-grid" style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:16}}>
         {isHost&&(
           <div style={{...C.card,display:"flex",flexDirection:"column",gap:9}}>
             <div style={C.ctitle}>➕ Add Player</div>
@@ -772,7 +780,7 @@ function TeamsView({teams,wildcards,startTournament,back,rename,settings,isHost}
     <div>
       <h1 style={C.h1}>⚡ Team Reveal</h1>
       <p style={C.sub}>{settings.gameMode==="1v1"?"1v1 — each player competes solo.":`Balanced via snake draft (${settings.gameMode}).`}{isHost?" Click ✏️ to rename any team.":""}</p>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14,marginBottom:16}}>
+      <div className="teams-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14,marginBottom:16}}>
         {teams.map(t=><TeamCard key={t.id} t={t} onRename={rename} isHost={isHost}/>)}
       </div>
       {wildcards.length>0&&<div style={{...C.card,color:"var(--orange)",borderColor:"rgba(255,107,53,.25)",marginBottom:16,fontSize:".88rem"}}>🃏 <strong>Wildcard Sub{wildcards.length>1?"s":""}:</strong> {wildcards.map(p=><span key={p.id}>{p.name} <span style={{color:rankColor(p.rank)}}>({p.rank})</span> </span>)}</div>}
@@ -806,7 +814,7 @@ function BracketPhase({groups,featured,spectCode,currentRound,upsets,openModal,b
         </div>
       )}
       {upsets.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>{upsets.map((u,i)=><span key={i} style={{background:"rgba(255,71,87,.1)",border:"1px solid rgba(255,71,87,.3)",borderRadius:5,padding:"5px 10px",fontSize:".78rem",color:"var(--red)"}}>🚨 UPSET · <strong>{u.w}</strong>(#{u.ws}) def. <strong>{u.l}</strong>(#{u.ls}) · {u.round}</span>)}</div>}
-      <div style={{display:"flex",flexDirection:"column",gap:14,marginBottom:18}}>
+      <div className="bracket-scroll" style={{display:"flex",flexDirection:"column",gap:14,marginBottom:18}}>
         <BracketSection title="🏆 Winners Bracket" color="wb" rounds={groups.WB} openModal={openModal} isHost={isHost}/>
         {bracket?.type==="DE"&&Object.keys(groups.LB).length>0&&<BracketSection title="💀 Losers Bracket" color="lb" rounds={groups.LB} openModal={openModal} isHost={isHost}/>}
         {groups.GF?.length>0&&(
@@ -896,4 +904,42 @@ const CSS=`
 :root{--bg:#05080f;--surf:#0b1120;--card:#101828;--border:rgba(0,210,255,0.13);--cyan:#00d4ff;--orange:#ff6b35;--gold:#ffd700;--green:#00ff88;--red:#ff4757;--purple:#a855f7;--text:#dde4f0;--muted:#5a6985;--wb:#00d4ff;--lb:#ff6b35;--gf:#ffd700;}
 html{font-size:16px;}body{background:var(--bg);color:var(--text);font-family:"Rajdhani",sans-serif;}
 select option{background:#101828;}a{text-decoration:none;color:inherit;}
+
+/* ── Mobile responsiveness ── */
+@media(max-width:700px){
+  /* Nav */
+  nav{padding:8px 12px !important;gap:6px !important;}
+  nav > div:first-child{flex-wrap:wrap;gap:8px !important;}
+  nav > div:last-child{flex-wrap:wrap;gap:6px !important;}
+
+  /* Signup grid: stack add-player panel above player list */
+  .signup-grid{grid-template-columns:1fr !important;}
+  .signup-grid > div:first-child{order:1;}
+  .signup-grid > div:last-child{order:2;grid-column:1 !important;}
+
+  /* Bracket: allow horizontal scroll on small screens */
+  .bracket-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;}
+
+  /* Score modal: full width */
+  .score-modal-inner{max-width:100% !important;padding:20px 14px !important;}
+  .score-modal-inputs{grid-template-columns:1fr auto 1fr !important;}
+
+  /* Settings modal */
+  .settings-modal-inner{padding:18px 14px !important;max-height:95vh !important;}
+
+  /* General modals */
+  .modal-base{padding:20px 14px !important;margin:0 8px;}
+
+  /* Teams grid */
+  .teams-grid{grid-template-columns:1fr !important;}
+
+  /* Phase trail: hide labels on tiny screens */
+  .phase-label{display:none !important;}
+
+  /* Buttons: full width on mobile in forms */
+  .mobile-full{width:100% !important;}
+
+  /* Lobby list: wrap match name */
+  .lobby-row{flex-wrap:wrap !important;gap:6px !important;}
+}
 `;

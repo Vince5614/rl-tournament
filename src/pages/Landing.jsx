@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase.js';
 const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
   finalsFrom:"SF", bracketType:"DE", maxTeams:8,
-  deadline:"", goldenGoal:true,
+  deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false,
 };
 
 export default function Landing() {
@@ -14,14 +14,31 @@ export default function Landing() {
   const { openSignIn } = useClerk();
   const navigate = useNavigate();
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [showJoin,   setShowJoin]   = useState(false);
-  const [tName,      setTName]      = useState('');
-  const [joinCode,   setJoinCode]   = useState('');
-  const [creating,   setCreating]   = useState(false);
-  const [joining,    setJoining]    = useState(false);
-  const [error,      setError]      = useState('');
-  const [pending,    setPending]    = useState(null);
+  const [showCreate,   setShowCreate]   = useState(false);
+  const [showJoin,     setShowJoin]     = useState(false);
+  const [tName,        setTName]        = useState('');
+  const [joinCode,     setJoinCode]     = useState('');
+  const [creating,     setCreating]     = useState(false);
+  const [joining,      setJoining]      = useState(false);
+  const [error,        setError]        = useState('');
+  const [pending,      setPending]      = useState(null);
+  const [publicTourneys, setPublicTourneys] = useState([]);
+  const [loadingPublic,  setLoadingPublic]  = useState(true);
+
+  useEffect(() => {
+    async function fetchPublic() {
+      const { data } = await supabase
+        .from('tournaments')
+        .select('code,name,host_name,phase,players,settings,created_at')
+        .neq('phase','results')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      const pub = (data || []).filter(t => t.settings?.isPublic === true);
+      setPublicTourneys(pub);
+      setLoadingPublic(false);
+    }
+    fetchPublic();
+  }, []);
 
   useEffect(() => {
     if (isSignedIn && pending === 'host') { setPending(null); setShowCreate(true); }
@@ -113,6 +130,38 @@ export default function Landing() {
             {error && <div className="land-error">{error}</div>}
           </div>
         </div>
+
+        {/* LIVE PUBLIC TOURNAMENTS */}
+        {(loadingPublic || publicTourneys.length > 0) && (
+          <div className="land-public">
+            <div className="land-public-header">
+              <span className="land-public-title">🌐 Live Tournaments</span>
+              <span className="land-public-sub">Public tournaments open to join right now</span>
+            </div>
+            {loadingPublic ? (
+              <div className="land-public-loading">Loading…</div>
+            ) : (
+              <div className="land-public-list">
+                {publicTourneys.map(t => {
+                  const PHASE_LABEL = { signup:'🟢 Sign-Ups Open', teams:'🔵 Teams Set', bracket:'🔴 Live Bracket', results:'✅ Ended' };
+                  return (
+                    <div key={t.code} className="land-public-card" onClick={() => navigate(`/t/${t.code}`)}>
+                      <div className="land-public-card-top">
+                        <span className="land-public-name">{t.name}</span>
+                        <span className="land-public-phase">{PHASE_LABEL[t.phase] || t.phase}</span>
+                      </div>
+                      <div className="land-public-card-meta">
+                        <span>Host: <strong>{t.host_name}</strong></span>
+                        <span>{t.players?.length || 0} players</span>
+                        <span className="land-public-code">{t.code}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* FEATURES */}
         <div className="land-features">
@@ -242,4 +291,31 @@ a{color:inherit;text-decoration:none;}
 .land-modal-btn{font-family:"Rajdhani",sans-serif;font-weight:800;font-size:.95rem;text-transform:uppercase;padding:12px 20px;border-radius:9px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--cyan),#008ab8);color:#000;width:100%;transition:all .18s;}
 .land-modal-btn:hover:not(:disabled){filter:brightness(1.1);}
 .land-modal-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.land-public{max-width:900px;margin:0 auto 48px;padding:0 24px;}
+.land-public-header{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.land-public-title{font-family:"Orbitron",sans-serif;font-size:.9rem;font-weight:900;color:var(--cyan);letter-spacing:1px;}
+.land-public-sub{color:var(--muted);font-size:.82rem;}
+.land-public-loading{color:var(--muted);font-size:.85rem;font-style:italic;padding:16px 0;}
+.land-public-list{display:flex;flex-direction:column;gap:10px;}
+.land-public-card{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:14px 18px;cursor:pointer;transition:border-color .18s,box-shadow .18s;}
+.land-public-card:hover{border-color:rgba(0,212,255,.4);box-shadow:0 4px 24px rgba(0,212,255,.08);}
+.land-public-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+.land-public-name{font-family:"Orbitron",sans-serif;font-size:.82rem;font-weight:700;color:var(--text);}
+.land-public-phase{font-size:.75rem;font-weight:600;color:var(--green);}
+.land-public-card-meta{display:flex;gap:16px;font-size:.78rem;color:var(--muted);flex-wrap:wrap;}
+.land-public-code{font-family:"Orbitron",sans-serif;font-size:.65rem;color:var(--cyan);letter-spacing:2px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:4px;padding:1px 7px;}
+
+@media(max-width:600px){
+  .land-nav{padding:12px 16px;}
+  .land-hero{padding:48px 16px 36px;}
+  .land-title{font-size:1.7rem;}
+  .land-tagline{font-size:.88rem;}
+  .land-cards{flex-direction:column;align-items:center;}
+  .land-card{max-width:100%;}
+  .land-divider{transform:rotate(90deg);margin:4px 0;}
+  .land-features{padding:0 16px 40px;grid-template-columns:1fr;}
+  .land-public{padding:0 16px;}
+  .land-modal{padding:22px 18px;}
+}
 `;
