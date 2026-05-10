@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { supabase } from '../lib/supabase.js';
+import { useTheme } from '../hooks/useTheme.js';
 
 /* ── Stat helpers ─────────────────────────────────────────────── */
 function calcStats(allTournaments, userId) {
@@ -62,6 +63,7 @@ const YT_SVG    = <svg width="13" height="13" viewBox="0 0 24 24" fill="currentC
 
 export default function ProfilePage() {
   const { isSignedIn, user } = useUser();
+  const { theme, toggle: toggleTheme } = useTheme();
   const { signOut } = useClerk();
   const navigate = useNavigate();
 
@@ -139,7 +141,12 @@ export default function ProfilePage() {
       <div className="prof">
         <nav className="prof-nav">
           <Link to="/" className="prof-logo">🚀 RL Tournament</Link>
-          <button className="prof-signout" onClick={handleSignOut}>Sign Out</button>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button className="prof-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button className="prof-signout" onClick={handleSignOut}>Sign Out</button>
+          </div>
         </nav>
 
         <div className="prof-content">
@@ -299,14 +306,17 @@ export default function ProfilePage() {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-:root{--bg:#05080f;--card:#101828;--surf:#0b1120;--border:rgba(0,210,255,0.13);--cyan:#00d4ff;--purple:#a855f7;--text:#dde4f0;--muted:#5a6985;}
+:root{--bg:#05080f;--card:#101828;--surf:#0b1120;--border:rgba(0,210,255,0.13);--cyan:#00d4ff;--purple:#a855f7;--text:#dde4f0;--muted:#5a6985;--nav-bg:rgba(5,8,15,.85);}
+:root[data-theme="light"]{--bg:#f0f4fc;--card:#ffffff;--surf:#e8edf8;--border:rgba(0,100,180,.15);--cyan:#0077aa;--purple:#6d28d9;--text:#0e1929;--muted:#6b7c9a;--nav-bg:rgba(240,244,252,.92);}
 body{background:var(--bg);color:var(--text);font-family:"Rajdhani",sans-serif;}
 a{color:inherit;text-decoration:none;}
 
 .prof{min-height:100vh;background:var(--bg);background-image:radial-gradient(ellipse 80% 50% at 10% -10%,rgba(0,212,255,.06),transparent);}
-.prof-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--border);background:rgba(5,8,15,.85);backdrop-filter:blur(12px);}
+.prof-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--border);background:var(--nav-bg);backdrop-filter:blur(12px);}
 .prof-logo{font-family:"Orbitron",sans-serif;font-size:.95rem;font-weight:900;color:var(--cyan);letter-spacing:1px;}
 .prof-signout{font-family:"Rajdhani",sans-serif;font-weight:700;font-size:.85rem;text-transform:uppercase;padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}
+.prof-theme-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,.06);font-size:.95rem;cursor:pointer;transition:all .18s;flex-shrink:0;}
+.prof-theme-btn:hover{border-color:var(--cyan);background:rgba(0,212,255,.1);transform:scale(1.1);}
 
 .prof-content{max-width:900px;margin:0 auto;padding:36px 24px 60px;}
 .prof-header{display:flex;align-items:flex-start;gap:20px;margin-bottom:24px;padding:24px;background:var(--card);border:1px solid var(--border);border-radius:16px;flex-wrap:wrap;}

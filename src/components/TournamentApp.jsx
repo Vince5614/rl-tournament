@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { supabase } from "../lib/supabase.js";
+import { useTheme } from "../hooks/useTheme.js";
 
 /* ═══════════════════════════════════════════════════════════════════
    CONSTANTS
@@ -202,6 +203,7 @@ function groupMatches(bracket){
 ═══════════════════════════════════════════════════════════════════ */
 export default function TournamentApp({ tournamentCode, isHost, initialData }) {
   const { user } = useUser();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const [phase,setPhase]           = useState(initialData?.phase || "signup");
   const [players,setPlayers]       = useState(initialData?.players || []);
@@ -437,7 +439,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
         )}
 
         {/* NAV */}
-        <nav style={{position:"sticky",top:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 20px",background:"rgba(5,8,15,.9)",borderBottom:"1px solid var(--border)",backdropFilter:"blur(12px)",flexWrap:"wrap",gap:8}}>
+        <nav style={{position:"sticky",top:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 20px",background:"var(--nav-bg)",borderBottom:"1px solid var(--border)",backdropFilter:"blur(12px)",flexWrap:"wrap",gap:8}}>
           <div style={{display:"flex",alignItems:"center",gap:14}}>
             <Link to="/" style={{fontFamily:"Orbitron,sans-serif",fontSize:".8rem",fontWeight:900,color:"var(--cyan)",letterSpacing:1,textDecoration:"none"}}>🚀 Home</Link>
             <div style={{width:1,height:16,background:"var(--border)"}}/>
@@ -462,6 +464,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
             </button>
             {isHost&&<button onClick={()=>setShowSettings(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(168,85,247,.4)",background:"rgba(168,85,247,.1)",color:"var(--purple)",cursor:"pointer"}}>⚙️ Settings</button>}
             <button onClick={()=>setShowFAQ(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(0,212,255,.3)",background:"rgba(0,212,255,.07)",color:"var(--cyan)",cursor:"pointer"}}>❓ FAQ</button>
+            <button onClick={toggleTheme} title={theme==="dark"?"Switch to light mode":"Switch to dark mode"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:"50%",border:"1px solid var(--border)",background:"rgba(255,255,255,.06)",fontSize:".85rem",cursor:"pointer",transition:"all .18s",flexShrink:0}}>{theme==="dark"?"☀️":"🌙"}</button>
             {user&&(
               <Link to="/profile" style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,var(--cyan),var(--purple))",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Orbitron,sans-serif",fontWeight:900,fontSize:".78rem",color:"#000",textDecoration:"none",flexShrink:0,overflow:"hidden"}}>
                 {user.imageUrl?<img src={user.imageUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span>{(user.fullName||user.username||"?")[0].toUpperCase()}</span>}
@@ -1019,7 +1022,8 @@ function JoinModal({name,setName,rank,setRank,twitch,setTwitch,onSubmit,onClose,
 const CSS=`
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-:root{--bg:#05080f;--surf:#0b1120;--card:#101828;--border:rgba(0,210,255,0.13);--cyan:#00d4ff;--orange:#ff6b35;--gold:#ffd700;--green:#00ff88;--red:#ff4757;--purple:#a855f7;--text:#dde4f0;--muted:#5a6985;--wb:#00d4ff;--lb:#ff6b35;--gf:#ffd700;}
+:root{--bg:#05080f;--surf:#0b1120;--card:#101828;--border:rgba(0,210,255,0.13);--cyan:#00d4ff;--orange:#ff6b35;--gold:#ffd700;--green:#00ff88;--red:#ff4757;--purple:#a855f7;--text:#dde4f0;--muted:#5a6985;--wb:#00d4ff;--lb:#ff6b35;--gf:#ffd700;--nav-bg:rgba(5,8,15,.9);}
+:root[data-theme="light"]{--bg:#f0f4fc;--surf:#e8edf8;--card:#ffffff;--border:rgba(0,100,180,.15);--cyan:#0077aa;--orange:#d44d1a;--gold:#9a6f00;--green:#007a42;--red:#cc2233;--purple:#6d28d9;--text:#0e1929;--muted:#6b7c9a;--wb:#0077aa;--lb:#d44d1a;--gf:#9a6f00;--nav-bg:rgba(240,244,252,.92);}
 html{font-size:16px;}body{background:var(--bg);color:var(--text);font-family:"Rajdhani",sans-serif;}
 select option{background:#101828;}a{text-decoration:none;color:inherit;}
 

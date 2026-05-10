@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { supabase } from '../lib/supabase.js';
+import { useTheme } from '../hooks/useTheme.js';
 
 const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
@@ -22,6 +23,7 @@ export default function Landing() {
   const { isSignedIn, user } = useUser();
   const { openSignIn } = useClerk();
   const navigate = useNavigate();
+  const { theme, toggle } = useTheme();
 
   const [showCreate,   setShowCreate]   = useState(false);
   const [showJoin,     setShowJoin]     = useState(false);
@@ -128,6 +130,9 @@ export default function Landing() {
         <nav className="land-nav">
           <div className="land-logo">🚀 RL Tournament</div>
           <div className="land-nav-right">
+            <button className="land-theme-btn" onClick={toggle} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
             {isSignedIn ? (
               <>
                 <span className="land-user">👋 {user.fullName || user.username}</span>
@@ -353,18 +358,23 @@ export default function Landing() {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-:root{--bg:#05080f;--card:#101828;--surf:#0b1120;--border:rgba(0,210,255,0.13);--cyan:#00d4ff;--orange:#ff6b35;--gold:#ffd700;--green:#00ff88;--purple:#a855f7;--text:#dde4f0;--muted:#5a6985;}
+:root{--bg:#05080f;--card:#101828;--surf:#0b1120;--border:rgba(0,210,255,0.13);--cyan:#00d4ff;--orange:#ff6b35;--gold:#ffd700;--green:#00ff88;--purple:#a855f7;--text:#dde4f0;--muted:#5a6985;--nav-bg:rgba(5,8,15,.85);}
+:root[data-theme="light"]{--bg:#f0f4fc;--card:#ffffff;--surf:#e8edf8;--border:rgba(0,100,180,.15);--cyan:#0077aa;--orange:#d44d1a;--gold:#9a6f00;--green:#007a42;--purple:#6d28d9;--text:#0e1929;--muted:#6b7c9a;--nav-bg:rgba(240,244,252,.92);}
 body{background:var(--bg);color:var(--text);font-family:"Rajdhani",sans-serif;}
 a{color:inherit;text-decoration:none;}
 
 .land{min-height:100vh;background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(0,212,255,.09),transparent),radial-gradient(ellipse 60% 60% at 90% 110%,rgba(168,85,247,.08),transparent);}
 
-.land-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid var(--border);background:rgba(5,8,15,.8);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
+.land-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid var(--border);background:var(--nav-bg);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
 .land-logo{font-family:"Orbitron",sans-serif;font-size:1rem;font-weight:900;color:var(--cyan);letter-spacing:1px;}
 .land-nav-right{display:flex;align-items:center;gap:14px;}
 .land-user{font-size:.88rem;color:var(--muted);}
 .land-profile-btn{font-family:"Orbitron",sans-serif;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:7px 14px;border-radius:8px;border:1px solid rgba(0,212,255,.3);background:rgba(0,212,255,.07);color:var(--cyan);cursor:pointer;}
 .land-signin-btn{font-family:"Orbitron",sans-serif;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;}
+.land-theme-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,.06);font-size:.95rem;cursor:pointer;transition:all .18s;flex-shrink:0;}
+.land-theme-btn:hover{border-color:var(--cyan);background:rgba(0,212,255,.1);transform:scale(1.1);}
+:root[data-theme="light"] .land-overlay{background:rgba(0,0,0,.45);}
+:root[data-theme="light"] .land{background-image:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(0,150,210,.06),transparent),radial-gradient(ellipse 60% 60% at 90% 110%,rgba(100,50,200,.04),transparent);}
 
 .land-hero{padding:80px 24px 60px;display:flex;justify-content:center;}
 .land-hero-inner{max-width:900px;width:100%;text-align:center;}
