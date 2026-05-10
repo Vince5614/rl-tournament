@@ -222,6 +222,10 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
   const [spectCode]                = useState(initialData?.spect_code || "RL-"+Math.random().toString(36).substr(2,6).toUpperCase());
   const [copied,setCopied]         = useState(false);
   const [tName]                    = useState(initialData?.name || "Tournament");
+  const [showJoinModal,setShowJoinModal] = useState(false);
+  const [joinName,setJoinName]     = useState("");
+  const [joinRank,setJoinRank]     = useState("Diamond I");
+  const [joining,setJoining]       = useState(false);
   const saveTimer                  = useRef(null);
 
   // ── Save to Supabase (debounced, host only) ──────────────────────
