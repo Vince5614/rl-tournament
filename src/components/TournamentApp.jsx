@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
   finalsFrom:"SF", bracketType:"DE", maxTeams:8,
   deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false,
+  hostTwitch:"", hostYoutube:"",
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -218,13 +219,14 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
   const [showFAQ,setShowFAQ]       = useState(false);
   const [showSupport,setShowSupport] = useState(false);
   const [settings,setSettings]     = useState(initialData?.settings || DEFAULT_SETTINGS);
-  const [form,setForm]             = useState({name:"",rank:"Diamond I",peak:""});
+  const [form,setForm]             = useState({name:"",rank:"Diamond I",peak:"",twitch:""});
   const [spectCode]                = useState(initialData?.spect_code || "RL-"+Math.random().toString(36).substr(2,6).toUpperCase());
   const [copied,setCopied]         = useState(false);
   const [tName]                    = useState(initialData?.name || "Tournament");
   const [showJoinModal,setShowJoinModal] = useState(false);
   const [joinName,setJoinName]     = useState("");
   const [joinRank,setJoinRank]     = useState("Diamond I");
+  const [joinTwitch,setJoinTwitch] = useState("");
   const [joining,setJoining]       = useState(false);
   const saveTimer                  = useRef(null);
 
@@ -276,8 +278,8 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
 
   function addPlayer(){
     if(!form.name.trim()||signupsLocked||!isHost)return;
-    setPlayers(p=>[...p,{id:Date.now(),name:form.name.trim(),rank:form.rank,peak:form.peak||null,seed:rankSeed(form.rank)}]);
-    setForm({name:"",rank:"Diamond I",peak:""});
+    setPlayers(p=>[...p,{id:Date.now(),name:form.name.trim(),rank:form.rank,peak:form.peak||null,seed:rankSeed(form.rank),twitch:form.twitch.trim()||null}]);
+    setForm({name:"",rank:"Diamond I",peak:"",twitch:""});
   }
   function loadDemo(){if(!isHost)return;setPlayers(DEMO_PLAYERS.map(p=>({...p,seed:rankSeed(p.rank)})));}
   function closeSignups(){
@@ -341,11 +343,11 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
   async function joinAsPlayer(){
     if(!joinName.trim()||joining) return;
     setJoining(true);
-    const newPlayer={id:Date.now(),name:joinName.trim(),rank:joinRank,seed:rankSeed(joinRank),user_id:user?.id||null};
+    const newPlayer={id:Date.now(),name:joinName.trim(),rank:joinRank,seed:rankSeed(joinRank),user_id:user?.id||null,twitch:joinTwitch.trim()||null};
     const updated=[...players,newPlayer];
     await supabase.from('tournaments').update({players:updated}).eq('code',tournamentCode);
     setPlayers(updated);
-    setShowJoinModal(false);setJoinName('');setJoinRank('Diamond I');setJoining(false);
+    setShowJoinModal(false);setJoinName('');setJoinRank('Diamond I');setJoinTwitch('');setJoining(false);
   }
 
   function getStandings(){
@@ -375,6 +377,27 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
     <>
       <style>{CSS}</style>
       <div style={{minHeight:"100vh",background:"var(--bg)",backgroundImage:"radial-gradient(ellipse 80% 50% at 10% -10%,rgba(0,212,255,.07),transparent),radial-gradient(ellipse 60% 60% at 90% 110%,rgba(168,85,247,.07),transparent)"}}>
+
+        {/* HOST SOCIALS BANNER */}
+        {(settings.hostTwitch||settings.hostYoutube) && (
+          <div style={{background:"rgba(0,0,0,.3)",borderBottom:"1px solid rgba(255,255,255,.07)",padding:"7px 20px",display:"flex",alignItems:"center",justifyContent:"center",gap:14,flexWrap:"wrap",fontSize:".82rem"}}>
+            <span style={{color:"var(--muted)",fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px"}}>📡 Watch the host live:</span>
+            {settings.hostTwitch&&(
+              <a href={settings.hostTwitch.startsWith("http")?settings.hostTwitch:"https://"+settings.hostTwitch} target="_blank" rel="noopener noreferrer"
+                style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px",borderRadius:6,background:"rgba(145,70,255,.15)",border:"1px solid rgba(145,70,255,.4)",color:"#bf94ff",fontWeight:700,fontSize:".8rem",textDecoration:"none"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#bf94ff"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
+                Twitch
+              </a>
+            )}
+            {settings.hostYoutube&&(
+              <a href={settings.hostYoutube.startsWith("http")?settings.hostYoutube:"https://"+settings.hostYoutube} target="_blank" rel="noopener noreferrer"
+                style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px",borderRadius:6,background:"rgba(255,0,0,.12)",border:"1px solid rgba(255,0,0,.35)",color:"#ff6b6b",fontWeight:700,fontSize:".8rem",textDecoration:"none"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#ff6b6b"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>
+                YouTube
+              </a>
+            )}
+          </div>
+        )}
 
         {/* SPECTATOR BANNER */}
         {!isHost && (
@@ -429,7 +452,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
         {showReset&&gfId&&isHost&&<ResetModal gf={bracket.matches[gfId]} onPick={handleReset}/>}
         {showSettings&&isHost&&<SettingsModal settings={settings} onChange={setSettings} onClose={()=>setShowSettings(false)}/>}
         {showFAQ&&<FAQModal onClose={()=>setShowFAQ(false)}/>}
-        {showJoinModal&&<JoinModal name={joinName} setName={setJoinName} rank={joinRank} setRank={setJoinRank} onSubmit={joinAsPlayer} onClose={()=>setShowJoinModal(false)} joining={joining}/>}
+        {showJoinModal&&<JoinModal name={joinName} setName={setJoinName} rank={joinRank} setRank={setJoinRank} twitch={joinTwitch} setTwitch={setJoinTwitch} onSubmit={joinAsPlayer} onClose={()=>setShowJoinModal(false)} joining={joining}/>}
         {showSupport&&<SupportModal onClose={()=>setShowSupport(false)}/>}
         <SupportButton onClick={()=>setShowSupport(true)}/>
       </div>
@@ -465,6 +488,19 @@ function SettingsModal({settings,onChange,onClose}){
         <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"none",border:"none",color:"var(--muted)",fontSize:"1rem",cursor:"pointer"}}>✕</button>
         <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",color:"var(--purple)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:7}}>Advanced Settings</div>
         <div style={{fontFamily:"Orbitron,sans-serif",fontSize:"1.1rem",fontWeight:700,marginBottom:20}}>⚙️ Tournament Settings</div>
+        <SettingSection icon="📡" title="Host Socials">
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div>
+              <div style={{fontSize:".72rem",fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".4px",marginBottom:5}}>🟣 Twitch URL</div>
+              <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%"}} placeholder="https://twitch.tv/yourname" value={settings.hostTwitch||""} onChange={e=>set("hostTwitch",e.target.value)}/>
+            </div>
+            <div>
+              <div style={{fontSize:".72rem",fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".4px",marginBottom:5}}>🔴 YouTube URL</div>
+              <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%"}} placeholder="https://youtube.com/@yourname" value={settings.hostYoutube||""} onChange={e=>set("hostYoutube",e.target.value)}/>
+            </div>
+          </div>
+          <div style={{fontSize:".78rem",color:"var(--muted)",marginTop:8}}>These links are shown to all players and spectators on the tournament page.</div>
+        </SettingSection>
         <SettingSection icon="👥" title="Team Formation"><ToggleGroup options={["snake","random"]} labels={["Balanced (Snake Draft)","Random Shuffle"]} value={settings.teamFormation||"snake"} onChange={v=>set("teamFormation",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{(settings.teamFormation||"snake")==="snake"?"Players are sorted by rank and paired to ensure every team has equal skill level.":"Teams are formed by randomly shuffling all registered players."}</div></SettingSection>
         <SettingSection icon="🌐" title="Tournament Visibility"><ToggleGroup options={[false,true]} labels={["🔒 Private (code only)","🌐 Public (browseable)"]} value={!!settings.isPublic} onChange={v=>set("isPublic",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.isPublic?"Anyone can find and join this tournament from the landing page.":"Only people with the tournament code can find this tournament."}</div></SettingSection>
         <SettingSection icon="🎮" title="Game Mode"><ToggleGroup options={["1v1","2v2","3v3","4v4"]} value={settings.gameMode} onChange={v=>set("gameMode",v)}/><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:6}}>{settings.gameMode==="1v1"?"Each player competes solo.":`Players paired ${settings.gameMode} via snake draft.`}</div></SettingSection>
@@ -741,6 +777,8 @@ function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeS
             <select style={{...C.inp,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} value={form.rank} onChange={e=>setForm(f=>({...f,rank:e.target.value}))} disabled={signupsLocked}>{RANKS.map(r=><option key={r}>{r}</option>)}</select>
             <span style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",margin:"8px 0 3px",textTransform:"uppercase",letterSpacing:".4px"}}>Peak Rank (optional)</span>
             <input style={{...C.inp,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} placeholder="e.g. Diamond III" value={form.peak} onChange={e=>setForm(f=>({...f,peak:e.target.value}))} disabled={signupsLocked}/>
+            <span style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",margin:"8px 0 3px",textTransform:"uppercase",letterSpacing:".4px"}}>🟣 Twitch (optional)</span>
+            <input style={{...C.inp,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} placeholder="https://twitch.tv/username" value={form.twitch} onChange={e=>setForm(f=>({...f,twitch:e.target.value}))} disabled={signupsLocked}/>
             <button style={{...C.primaryBtn,...(signupsLocked?{opacity:.4,pointerEvents:"none"}:{})}} onClick={addPlayer} disabled={signupsLocked}>+ Add Player</button>
             <div style={{height:1,background:"var(--border)",margin:"3px 0"}}/>
             <button style={C.ghostBtn} onClick={loadDemo} disabled={signupsLocked}>🎮 Load Demo Players</button>
@@ -758,6 +796,7 @@ function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeS
                 <span style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",color:"var(--muted)",minWidth:20}}>#{i+1}</span>
                 <span style={{fontWeight:700,fontSize:".72rem",minWidth:100,color:rankColor(p.rank)}}>{p.rank}</span>
                 <span style={{flex:1,fontWeight:600,fontSize:".9rem"}}>{p.name}</span>
+                {p.twitch&&<a href={p.twitch.startsWith("http")?p.twitch:"https://"+p.twitch} target="_blank" rel="noopener noreferrer" style={{fontSize:".7rem",color:"#bf94ff",background:"rgba(145,70,255,.12)",border:"1px solid rgba(145,70,255,.3)",borderRadius:4,padding:"1px 6px",textDecoration:"none",whiteSpace:"nowrap"}} title="Watch on Twitch">🟣 Twitch</a>}
                 {isHost&&<button style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:".85rem",padding:"1px 5px",borderRadius:4}} onClick={()=>removePlayer(p.id)}>✕</button>}
               </div>
             ))}
@@ -875,7 +914,7 @@ function ResultsView({standings,upsets,teams,mvp,resetWinner,settings}){
 }
 
 
-function JoinModal({name,setName,rank,setRank,onSubmit,onClose,joining}){
+function JoinModal({name,setName,rank,setRank,twitch,setTwitch,onSubmit,onClose,joining}){
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:500,padding:18}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:16,padding:28,maxWidth:420,width:"100%",position:"relative",boxShadow:"0 24px 80px rgba(0,0,0,.5)"}}>
@@ -886,9 +925,11 @@ function JoinModal({name,setName,rank,setRank,onSubmit,onClose,joining}){
         <label style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:".4px"}}>Your Gamertag</label>
         <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:12}} placeholder="Your RL username" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&onSubmit()} autoFocus/>
         <label style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:".4px"}}>Current Rank</label>
-        <select style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:20}} value={rank} onChange={e=>setRank(e.target.value)}>
+        <select style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:12}} value={rank} onChange={e=>setRank(e.target.value)}>
           {RANKS.map(r=><option key={r}>{r}</option>)}
         </select>
+        <label style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:".4px"}}>🟣 Twitch <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional)</span></label>
+        <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:20}} placeholder="https://twitch.tv/yourname" value={twitch} onChange={e=>setTwitch(e.target.value)}/>
         <div style={{display:"flex",gap:9}}>
           <button onClick={onClose} style={{flex:1,fontFamily:"Rajdhani,sans-serif",fontWeight:700,fontSize:".9rem",textTransform:"uppercase",padding:"10px",borderRadius:8,border:"1px solid var(--border)",background:"transparent",color:"var(--text)",cursor:"pointer"}}>Cancel</button>
           <button onClick={onSubmit} disabled={!name.trim()||joining} style={{flex:1,fontFamily:"Rajdhani,sans-serif",fontWeight:800,fontSize:".9rem",textTransform:"uppercase",padding:"10px",borderRadius:8,border:"none",background:"linear-gradient(135deg,var(--cyan),#008ab8)",color:"#000",cursor:"pointer",opacity:!name.trim()||joining?.5:1}}>{joining?"Registering...":"Register →"}</button>

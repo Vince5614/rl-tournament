@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase.js';
 const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
   finalsFrom:"SF", bracketType:"DE", maxTeams:8,
-  deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false,
+  deadline:"", goldenGoal:true, teamFormation:"snake", isPublic:false, hostTwitch:"", hostYoutube:"",
 };
 
 export default function Landing() {
