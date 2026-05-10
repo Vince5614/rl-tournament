@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { supabase } from "../lib/supabase.js";
 import { useTheme } from "../hooks/useTheme.js";
+import { getPubName } from "../lib/pubname.js";
 
 /* ═══════════════════════════════════════════════════════════════════
    CONSTANTS
@@ -343,6 +344,10 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
     setFeatured(pickFeatured(nb.matches,nr));
   }
   function handleReset(slot){const gf=bracket.matches[gfId],w=slot==="A"?gf.teamA:gf.teamB;setResetW(w);setShowReset(false);setPhase("results");}
+  function openJoin(){
+    if(user&&!joinName){setJoinName(getPubName(user));}
+    setShowJoinModal(true);
+  }
   async function joinAsPlayer(){
     if(!joinName.trim()||joining) return;
     setJoining(true);
@@ -361,7 +366,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
     const cur=data?.settings||settings;
     const rsvps=cur.rsvps||[];
     const already=rsvps.some(r=>r.user_id===user.id);
-    const newRsvps=already?rsvps.filter(r=>r.user_id!==user.id):[...rsvps,{user_id:user.id,name:user.fullName||user.username||"Player"}];
+    const newRsvps=already?rsvps.filter(r=>r.user_id!==user.id):[...rsvps,{user_id:user.id,name:getPubName(user)}];
     const updated={...cur,rsvps:newRsvps};
     await supabase.from("tournaments").update({settings:updated}).eq("code",tournamentCode);
     setSettings(updated);
@@ -372,8 +377,15 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
     if(!bracket||!gfId)return null;
     const gf=bracket.matches[gfId];if(!gf?.isComplete)return null;
     const fw=resetWinner||gf.winner,fl=fw?.id===gf.teamA?.id?gf.teamB:gf.teamA;
-    const lbf=bracket.type==="DE"?bracket.matches[bracket.bracketSize<=4?"M5":"M13"]:null;
-    return{first:fw,second:fl,third:lbf?.loser||null};
+    let third=null;
+    if(bracket.type==="DE"){
+      // Find LB Final: the LB-bracket match whose winner slot feeds the Grand Final
+      const lbFinalId=Object.keys(bracket.flow).find(id=>
+        bracket.matches[id]?.bracket==="LB"&&bracket.flow[id]?.w?.id===gfId
+      );
+      third=lbFinalId?(bracket.matches[lbFinalId]?.loser||null):null;
+    }
+    return{first:fw,second:fl,third};
   }
   function getMVP(){
     if(!bracket)return null;
@@ -464,17 +476,21 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
             </button>
             {isHost&&<button onClick={()=>setShowSettings(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(168,85,247,.4)",background:"rgba(168,85,247,.1)",color:"var(--purple)",cursor:"pointer"}}>⚙️ Settings</button>}
             <button onClick={()=>setShowFAQ(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(0,212,255,.3)",background:"rgba(0,212,255,.07)",color:"var(--cyan)",cursor:"pointer"}}>❓ FAQ</button>
-            <button onClick={toggleTheme} title={theme==="dark"?"Switch to light mode":"Switch to dark mode"} style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:"50%",border:"1px solid var(--border)",background:"rgba(255,255,255,.06)",fontSize:".85rem",cursor:"pointer",transition:"all .18s",flexShrink:0}}>{theme==="dark"?"☀️":"🌙"}</button>
+            <button className="theme-switch" onClick={toggleTheme} title="Toggle dark / light mode">
+              <span className="ts-icon" style={{opacity:theme==="light"?1:.45}}>☀️</span>
+              <span className="ts-track"><span className="ts-thumb"/></span>
+              <span className="ts-icon" style={{opacity:theme==="dark"?1:.45}}>🌙</span>
+            </button>
             {user&&(
               <Link to="/profile" style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,var(--cyan),var(--purple))",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Orbitron,sans-serif",fontWeight:900,fontSize:".78rem",color:"#000",textDecoration:"none",flexShrink:0,overflow:"hidden"}}>
-                {user.imageUrl?<img src={user.imageUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span>{(user.fullName||user.username||"?")[0].toUpperCase()}</span>}
+                {user.imageUrl?<img src={user.imageUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span>{getPubName(user)[0].toUpperCase()}</span>}
               </Link>
             )}
           </div>
         </nav>
 
         <div style={{maxWidth:1200,margin:"0 auto",padding:"22px 18px 60px"}}>
-          {phase==="signup"  && <SignupView  players={players} form={form} setForm={setForm} addPlayer={addPlayer} loadDemo={loadDemo} removePlayer={id=>setPlayers(p=>p.filter(x=>x.id!==id))} closeSignups={closeSignups} settings={settings} signupsLocked={signupsLocked} isHost={isHost} tournamentCode={tournamentCode} onEditSettings={()=>setShowSettings(true)} onJoin={()=>setShowJoinModal(true)} isSignedIn={!!user}/>}
+          {phase==="signup"  && <SignupView  players={players} form={form} setForm={setForm} addPlayer={addPlayer} loadDemo={loadDemo} removePlayer={id=>setPlayers(p=>p.filter(x=>x.id!==id))} closeSignups={closeSignups} settings={settings} signupsLocked={signupsLocked} isHost={isHost} tournamentCode={tournamentCode} onEditSettings={()=>setShowSettings(true)} onJoin={openJoin} isSignedIn={!!user}/>}
           {phase==="teams"   && <TeamsView   teams={teams} wildcards={wildcards} startTournament={startTournament} back={()=>setPhase("signup")} rename={renameTeam} settings={settings} isHost={isHost}/>}
           {phase==="bracket" && <BracketPhase groups={groups} featured={featured} spectCode={spectCode} currentRound={currentRound} upsets={upsets} openModal={openModal} bracket={bracket} settings={settings} isHost={isHost}/>}
           {phase==="results" && <ResultsView standings={standings} upsets={upsets} teams={teams} mvp={mvp} resetWinner={resetWinner} settings={settings}/>}
@@ -797,7 +813,7 @@ function StepItem({n,title,body}){
    PHASE VIEWS
 ═══════════════════════════════════════════════════════════════════ */
 const C={
-  h1:{fontFamily:"Orbitron,sans-serif",fontSize:"clamp(1.3rem,2.5vw,1.9rem)",fontWeight:900,background:"linear-gradient(135deg,#fff 30%,var(--cyan))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",lineHeight:1.2,marginBottom:5},
+  h1:{fontFamily:"Orbitron,sans-serif",fontSize:"clamp(1.3rem,2.5vw,1.9rem)",fontWeight:900,background:"linear-gradient(135deg,var(--text) 30%,var(--cyan))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",lineHeight:1.2,marginBottom:5},
   sub:{color:"var(--muted)",fontSize:".9rem",marginBottom:20},
   card:{background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,padding:18},
   ctitle:{fontFamily:"Orbitron,sans-serif",fontSize:".72rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",color:"var(--cyan)",marginBottom:12},
@@ -1026,6 +1042,22 @@ const CSS=`
 :root[data-theme="light"]{--bg:#f0f4fc;--surf:#e8edf8;--card:#ffffff;--border:rgba(0,100,180,.15);--cyan:#0077aa;--orange:#d44d1a;--gold:#9a6f00;--green:#007a42;--red:#cc2233;--purple:#6d28d9;--text:#0e1929;--muted:#6b7c9a;--wb:#0077aa;--lb:#d44d1a;--gf:#9a6f00;--nav-bg:rgba(240,244,252,.92);}
 html{font-size:16px;}body{background:var(--bg);color:var(--text);font-family:"Rajdhani",sans-serif;}
 select option{background:#101828;}a{text-decoration:none;color:inherit;}
+[data-theme="light"] select option{background:#e8edf8;}
+
+/* ── Theme toggle switch (shared) ── */
+.theme-switch{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;transition:border-color .18s;flex-shrink:0;}
+.theme-switch:hover{border-color:var(--cyan);}
+[data-theme="light"] .theme-switch{background:rgba(0,0,0,.04);}
+.ts-track{position:relative;display:flex;align-items:center;width:36px;height:20px;border-radius:10px;background:rgba(0,0,0,.3);transition:background .2s;flex-shrink:0;}
+[data-theme="light"] .ts-track{background:rgba(0,100,180,.2);}
+.ts-thumb{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--cyan);transition:transform .2s;transform:translateX(16px);}
+[data-theme="light"] .ts-thumb{transform:translateX(0);}
+.ts-icon{font-size:.82rem;line-height:1;}
+
+/* ── Light-mode overrides for hardcoded rgba values ── */
+[data-theme="light"] body{color:var(--text);}
+[data-theme="light"] .score-modal-inner,[data-theme="light"] .settings-modal-inner,[data-theme="light"] .modal-base{background:var(--card);}
+[data-theme="light"] .bracket-scroll{background:transparent;}
 
 /* ── Mobile responsiveness ── */
 @media(max-width:700px){
