@@ -328,6 +328,16 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
     setFeatured(pickFeatured(nb.matches,nr));
   }
   function handleReset(slot){const gf=bracket.matches[gfId],w=slot==="A"?gf.teamA:gf.teamB;setResetW(w);setShowReset(false);setPhase("results");}
+  async function joinAsPlayer(){
+    if(!joinName.trim()||joining) return;
+    setJoining(true);
+    const newPlayer={id:Date.now(),name:joinName.trim(),rank:joinRank,seed:rankSeed(joinRank),user_id:user?.id||null};
+    const updated=[...players,newPlayer];
+    await supabase.from('tournaments').update({players:updated}).eq('code',tournamentCode);
+    setPlayers(updated);
+    setShowJoinModal(false);setJoinName('');setJoinRank('Diamond I');setJoining(false);
+  }
+
   function getStandings(){
     if(!bracket||!gfId)return null;
     const gf=bracket.matches[gfId];if(!gf?.isComplete)return null;
@@ -390,14 +400,16 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
               {copied?"✓ Copied!":"🔗 Share"}
             </button>
             <button onClick={()=>setShowFAQ(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(0,212,255,.3)",background:"rgba(0,212,255,.07)",color:"var(--cyan)",cursor:"pointer"}}>❓ FAQ</button>
-            {isHost&&(phase==="signup"||phase==="teams")&&(
-              <button onClick={()=>setShowSettings(true)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(168,85,247,.4)",background:"rgba(168,85,247,.08)",color:"var(--purple)",cursor:"pointer"}}>⚙️ Settings</button>
+            {user&&(
+              <Link to="/profile" style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,var(--cyan),var(--purple))",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Orbitron,sans-serif",fontWeight:900,fontSize:".78rem",color:"#000",textDecoration:"none",flexShrink:0,overflow:"hidden"}}>
+                {user.imageUrl?<img src={user.imageUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span>{(user.fullName||user.username||"?")[0].toUpperCase()}</span>}
+              </Link>
             )}
           </div>
         </nav>
 
         <div style={{maxWidth:1200,margin:"0 auto",padding:"22px 18px 60px"}}>
-          {phase==="signup"  && <SignupView  players={players} form={form} setForm={setForm} addPlayer={addPlayer} loadDemo={loadDemo} removePlayer={id=>setPlayers(p=>p.filter(x=>x.id!==id))} closeSignups={closeSignups} settings={settings} signupsLocked={signupsLocked} isHost={isHost} tournamentCode={tournamentCode}/>}
+          {phase==="signup"  && <SignupView  players={players} form={form} setForm={setForm} addPlayer={addPlayer} loadDemo={loadDemo} removePlayer={id=>setPlayers(p=>p.filter(x=>x.id!==id))} closeSignups={closeSignups} settings={settings} signupsLocked={signupsLocked} isHost={isHost} tournamentCode={tournamentCode} onEditSettings={()=>setShowSettings(true)} onJoin={()=>setShowJoinModal(true)} isSignedIn={!!user}/>
           {phase==="teams"   && <TeamsView   teams={teams} wildcards={wildcards} startTournament={startTournament} back={()=>setPhase("signup")} rename={renameTeam} settings={settings} isHost={isHost}/>}
           {phase==="bracket" && <BracketPhase groups={groups} featured={featured} spectCode={spectCode} currentRound={currentRound} upsets={upsets} openModal={openModal} bracket={bracket} settings={settings} isHost={isHost}/>}
           {phase==="results" && <ResultsView standings={standings} upsets={upsets} teams={teams} mvp={mvp} resetWinner={resetWinner} settings={settings}/>}
@@ -407,6 +419,7 @@ export default function TournamentApp({ tournamentCode, isHost, initialData }) {
         {showReset&&gfId&&isHost&&<ResetModal gf={bracket.matches[gfId]} onPick={handleReset}/>}
         {showSettings&&isHost&&<SettingsModal settings={settings} onChange={setSettings} onClose={()=>setShowSettings(false)}/>}
         {showFAQ&&<FAQModal onClose={()=>setShowFAQ(false)}/>}
+        {showJoinModal&&<JoinModal name={joinName} setName={setJoinName} rank={joinRank} setRank={setJoinRank} onSubmit={joinAsPlayer} onClose={()=>setShowJoinModal(false)} joining={joining}/>}
         {showSupport&&<SupportModal onClose={()=>setShowSupport(false)}/>}
         <SupportButton onClick={()=>setShowSupport(true)}/>
       </div>
@@ -667,7 +680,7 @@ const C={
   ghostBtn:{fontFamily:"Rajdhani,sans-serif",fontWeight:700,fontSize:".9rem",textTransform:"uppercase",padding:"9px 18px",borderRadius:8,border:"1px solid var(--border)",background:"transparent",color:"var(--text)",cursor:"pointer"},
 };
 
-function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeSignups,settings,signupsLocked,isHost,tournamentCode}){
+function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeSignups,settings,signupsLocked,isHost,tournamentCode,onEditSettings,onJoin,isSignedIn}){
   const ppt=pptFor(settings.gameMode),min=ppt*2;
   const sorted=[...players].sort((a,b)=>b.seed-a.seed);
   const shareUrl=`${window.location.origin}/t/${tournamentCode}`;
@@ -680,6 +693,31 @@ function SignupView({players,form,setForm,addPlayer,loadDemo,removePlayer,closeS
         <div><span style={{fontSize:".72rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".5px",fontWeight:700}}>Share link · </span><span style={{fontFamily:"Orbitron,sans-serif",fontSize:".75rem",color:"var(--cyan)",letterSpacing:1}}>{shareUrl}</span></div>
         <button onClick={()=>navigator.clipboard.writeText(shareUrl)} style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",padding:"5px 10px",borderRadius:6,border:"1px solid rgba(0,212,255,.3)",background:"rgba(0,212,255,.08)",color:"var(--cyan)",cursor:"pointer"}}>Copy</button>
       </div>
+      {/* Settings card — host only */}
+      {isHost&&(
+        <div style={{background:"rgba(168,85,247,.06)",border:"1px solid rgba(168,85,247,.25)",borderRadius:11,padding:"14px 18px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".68rem",fontWeight:700,color:"var(--purple)",letterSpacing:"1px",textTransform:"uppercase",marginBottom:4}}>⚙️ Tournament Settings</div>
+            <div style={{fontSize:".84rem",color:"var(--muted)"}}>{settings.gameMode} · {settings.bracketType==="DE"?"Double Elim":"Single Elim"} · {settings.earlyFormat}/{settings.finalsFormat} · {settings.maxTeams===0?"No team limit":`Max ${settings.maxTeams} teams`}</div>
+          </div>
+          <button onClick={onEditSettings} style={{fontFamily:"Rajdhani,sans-serif",fontWeight:700,fontSize:".85rem",textTransform:"uppercase",letterSpacing:".5px",padding:"8px 16px",borderRadius:8,border:"1px solid rgba(168,85,247,.4)",background:"rgba(168,85,247,.1)",color:"var(--purple)",cursor:"pointer",whiteSpace:"nowrap"}}>Edit Settings →</button>
+        </div>
+      )}
+      {/* Join as player — spectators */}
+      {!isHost&&isSignedIn&&(
+        <div style={{background:"rgba(0,212,255,.06)",border:"1px solid rgba(0,212,255,.25)",borderRadius:11,padding:"14px 18px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".68rem",fontWeight:700,color:"var(--cyan)",letterSpacing:"1px",textTransform:"uppercase",marginBottom:4}}>🎮 Want to play?</div>
+            <div style={{fontSize:".84rem",color:"var(--muted)"}}>Register yourself as a player — the host will see you in the list.</div>
+          </div>
+          <button onClick={onJoin} style={{fontFamily:"Rajdhani,sans-serif",fontWeight:700,fontSize:".85rem",textTransform:"uppercase",letterSpacing:".5px",padding:"8px 16px",borderRadius:8,border:"1px solid rgba(0,212,255,.4)",background:"rgba(0,212,255,.1)",color:"var(--cyan)",cursor:"pointer",whiteSpace:"nowrap"}}>Register as Player →</button>
+        </div>
+      )}
+      {!isHost&&!isSignedIn&&(
+        <div style={{background:"rgba(0,212,255,.04)",border:"1px solid var(--border)",borderRadius:11,padding:"12px 16px",marginBottom:14,fontSize:".84rem",color:"var(--muted)"}}>
+          👋 Sign in to register as a player in this tournament.
+        </div>
+      )}
       {settings.deadline&&<Countdown deadline={settings.deadline}/>}
       {signupsLocked&&<div style={{background:"rgba(255,71,87,.1)",border:"1px solid rgba(255,71,87,.3)",borderRadius:9,padding:"12px 16px",marginBottom:14,color:"var(--red)",fontWeight:600,fontSize:".9rem"}}>🔒 Registration is closed.</div>}
       <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:16}}>
@@ -819,6 +857,30 @@ function ResultsView({standings,upsets,teams,mvp,resetWinner,settings}){
           <thead><tr>{["Seed","Team","Players"].map(h=><th key={h} style={{textAlign:"left",fontSize:".65rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".5px",color:"var(--muted)",padding:"0 9px 9px 0",borderBottom:"1px solid var(--border)"}}>{h}</th>)}</tr></thead>
           <tbody>{teams.map(t=>{const pl=t.id===standings.first?.id?1:t.id===standings.second?.id?2:t.id===standings.third?.id?3:null;return(<tr key={t.id} style={pl===1?{background:"rgba(255,215,0,.04)"}:pl===2?{background:"rgba(192,192,192,.03)"}:pl===3?{background:"rgba(205,127,50,.03)"}:{}}><td style={{padding:"9px 9px 9px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>{pl===1?"🏆":pl===2?"🥈":pl===3?"🥉":""}#{t.seed}</td><td style={{padding:"9px 9px 9px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}><strong>{t.name}</strong></td><td style={{padding:"9px 9px 9px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>{t.players.map(p=><span key={p.id} style={{display:"inline-flex",alignItems:"center",gap:4,marginRight:9,fontSize:".78rem"}}><span style={{color:rankColor(p.rank)}}>{p.rank}</span> {p.name}</span>)}</td></tr>);})}</tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+
+function JoinModal({name,setName,rank,setRank,onSubmit,onClose,joining}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:500,padding:18}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:16,padding:28,maxWidth:420,width:"100%",position:"relative",boxShadow:"0 24px 80px rgba(0,0,0,.5)"}}>
+        <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"none",border:"none",color:"var(--muted)",fontSize:"1rem",cursor:"pointer"}}>✕</button>
+        <div style={{fontFamily:"Orbitron,sans-serif",fontSize:".6rem",color:"var(--cyan)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:7}}>Join Tournament</div>
+        <div style={{fontFamily:"Orbitron,sans-serif",fontSize:"1.1rem",fontWeight:700,marginBottom:6}}>Register as a Player</div>
+        <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:20,lineHeight:1.6}}>Enter your Rocket League info to register. The host will see you in the player list.</p>
+        <label style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:".4px"}}>Your Gamertag</label>
+        <input style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:12}} placeholder="Your RL username" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&onSubmit()} autoFocus/>
+        <label style={{display:"block",fontSize:".72rem",fontWeight:600,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:".4px"}}>Current Rank</label>
+        <select style={{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:7,padding:"9px 13px",color:"var(--text)",fontFamily:"Rajdhani,sans-serif",fontSize:".9rem",width:"100%",marginBottom:20}} value={rank} onChange={e=>setRank(e.target.value)}>
+          {RANKS.map(r=><option key={r}>{r}</option>)}
+        </select>
+        <div style={{display:"flex",gap:9}}>
+          <button onClick={onClose} style={{flex:1,fontFamily:"Rajdhani,sans-serif",fontWeight:700,fontSize:".9rem",textTransform:"uppercase",padding:"10px",borderRadius:8,border:"1px solid var(--border)",background:"transparent",color:"var(--text)",cursor:"pointer"}}>Cancel</button>
+          <button onClick={onSubmit} disabled={!name.trim()||joining} style={{flex:1,fontFamily:"Rajdhani,sans-serif",fontWeight:800,fontSize:".9rem",textTransform:"uppercase",padding:"10px",borderRadius:8,border:"none",background:"linear-gradient(135deg,var(--cyan),#008ab8)",color:"#000",cursor:"pointer",opacity:!name.trim()||joining?.5:1}}>{joining?"Registering...":"Register →"}</button>
+        </div>
       </div>
     </div>
   );
