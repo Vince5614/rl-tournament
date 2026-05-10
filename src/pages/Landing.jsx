@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { supabase } from '../lib/supabase.js';
 import { useTheme } from '../hooks/useTheme.js';
+import { getPubName, setPubName, hasNoPubName } from '../lib/pubname.js';
 
 const DEFAULT_SETTINGS = {
   gameMode:"2v2", earlyFormat:"BO3", finalsFormat:"BO5",
@@ -38,6 +39,8 @@ export default function Landing() {
   const [loadingPublic,    setLoadingPublic]    = useState(true);
   const [tick,             setTick]             = useState(0);
   const [rsvping,          setRsvping]          = useState(null); // code of tournament being RSVP'd
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [draftName,          setDraftName]          = useState('');
 
   // Tick every second for countdowns
   useEffect(() => {
@@ -72,12 +75,20 @@ export default function Landing() {
     const already = rsvps.some(r => r.user_id === user.id);
     const newRsvps = already
       ? rsvps.filter(r => r.user_id !== user.id)
-      : [...rsvps, { user_id: user.id, name: user.fullName || user.username || 'Player' }];
+      : [...rsvps, { user_id: user.id, name: getPubName(user) }];
     const updated = { ...cur, rsvps: newRsvps };
     await supabase.from('tournaments').update({ settings: updated }).eq('code', t.code);
     setUpcomingTourneys(prev => prev.map(x => x.code === t.code ? { ...x, settings: updated } : x));
     setRsvping(null);
   }
+
+  // First-time username prompt
+  useEffect(() => {
+    if (isSignedIn && user?.id && hasNoPubName(user)) {
+      setDraftName(user.username || '');
+      setShowUsernamePrompt(true);
+    }
+  }, [isSignedIn, user?.id]);
 
   useEffect(() => {
     if (isSignedIn && pending === 'host') { setPending(null); setShowCreate(true); }
@@ -104,7 +115,7 @@ export default function Landing() {
     const { error: err } = await supabase.from('tournaments').insert({
       code, name: tName.trim(),
       host_id: user.id,
-      host_name: user.fullName || user.username || 'Host',
+      host_name: getPubName(user),
       settings: DEFAULT_SETTINGS,
       phase: 'signup', players: [], teams: [], wildcards: [], upsets: [],
       spect_code: spectCode, featured: null, bracket: null, reset_winner: null,
@@ -130,12 +141,14 @@ export default function Landing() {
         <nav className="land-nav">
           <div className="land-logo">🚀 RL Tournament</div>
           <div className="land-nav-right">
-            <button className="land-theme-btn" onClick={toggle} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-              {theme === 'dark' ? '☀️' : '🌙'}
+            <button className="theme-switch" onClick={toggle} title="Toggle dark / light mode">
+              <span className="ts-icon" style={{opacity:theme==='light'?1:.45}}>☀️</span>
+              <span className="ts-track"><span className="ts-thumb"/></span>
+              <span className="ts-icon" style={{opacity:theme==='dark'?1:.45}}>🌙</span>
             </button>
             {isSignedIn ? (
               <>
-                <span className="land-user">👋 {user.fullName || user.username}</span>
+                <span className="land-user">👋 {getPubName(user)}</span>
                 <Link to="/profile" className="land-profile-btn">My Profile</Link>
               </>
             ) : (
@@ -331,6 +344,38 @@ export default function Landing() {
           </div>
         )}
 
+        {/* USERNAME PROMPT (first login) */}
+        {showUsernamePrompt && (
+          <div className="land-overlay">
+            <div className="land-modal">
+              <div className="land-modal-tag">Welcome!</div>
+              <h2 className="land-modal-title">Choose Your Public Username</h2>
+              <p className="land-modal-sub">This is the name other players will see in tournaments, RSVPs, and standings. Your real name stays private.</p>
+              <input
+                className="land-modal-input"
+                placeholder="e.g. ChillyGoal, RL_Ace, xXSniper99"
+                value={draftName}
+                onChange={e => setDraftName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && draftName.trim()) {
+                    setPubName(user.id, draftName);
+                    setShowUsernamePrompt(false);
+                  }
+                }}
+                maxLength={32}
+                autoFocus
+              />
+              <p style={{fontSize:'.75rem',color:'var(--muted)',marginBottom:16,marginTop:-6}}>Max 32 characters · You can change this any time from your profile.</p>
+              <button
+                className="land-modal-btn"
+                onClick={() => { if (draftName.trim()) { setPubName(user.id, draftName); setShowUsernamePrompt(false); } }}
+                disabled={!draftName.trim()}>
+                Save Username →
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* JOIN MODAL */}
         {showJoin && (
           <div className="land-overlay" onClick={e=>{if(e.target===e.currentTarget){setShowJoin(false);setJoinCode('');setError('');}}}>
@@ -371,10 +416,24 @@ a{color:inherit;text-decoration:none;}
 .land-user{font-size:.88rem;color:var(--muted);}
 .land-profile-btn{font-family:"Orbitron",sans-serif;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:7px 14px;border-radius:8px;border:1px solid rgba(0,212,255,.3);background:rgba(0,212,255,.07);color:var(--cyan);cursor:pointer;}
 .land-signin-btn{font-family:"Orbitron",sans-serif;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;}
-.land-theme-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,.06);font-size:.95rem;cursor:pointer;transition:all .18s;flex-shrink:0;}
-.land-theme-btn:hover{border-color:var(--cyan);background:rgba(0,212,255,.1);transform:scale(1.1);}
-:root[data-theme="light"] .land-overlay{background:rgba(0,0,0,.45);}
-:root[data-theme="light"] .land{background-image:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(0,150,210,.06),transparent),radial-gradient(ellipse 60% 60% at 90% 110%,rgba(100,50,200,.04),transparent);}
+
+/* ── Theme toggle switch ── */
+.theme-switch{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;transition:border-color .18s;flex-shrink:0;}
+.theme-switch:hover{border-color:var(--cyan);}
+[data-theme="light"] .theme-switch{background:rgba(0,0,0,.04);}
+.ts-track{position:relative;display:flex;align-items:center;width:36px;height:20px;border-radius:10px;background:rgba(0,0,0,.3);transition:background .2s;flex-shrink:0;}
+[data-theme="light"] .ts-track{background:rgba(0,100,180,.2);}
+.ts-thumb{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--cyan);transition:transform .2s;}
+.ts-thumb{transform:translateX(16px);}
+[data-theme="light"] .ts-thumb{transform:translateX(0);}
+.ts-icon{font-size:.82rem;line-height:1;}
+
+[data-theme="light"] .land-overlay{background:rgba(0,0,0,.45);}
+[data-theme="light"] .land{background-image:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(0,150,210,.06),transparent),radial-gradient(ellipse 60% 60% at 90% 110%,rgba(100,50,200,.04),transparent);}
+[data-theme="light"] .land-card{box-shadow:0 2px 16px rgba(0,0,0,.07);}
+[data-theme="light"] .land-public-card{box-shadow:0 2px 12px rgba(0,0,0,.06);}
+[data-theme="light"] .land-upcoming-card{border-color:rgba(154,111,0,.35);}
+[data-theme="light"] .land-feature{box-shadow:0 2px 12px rgba(0,0,0,.05);}
 
 .land-hero{padding:80px 24px 60px;display:flex;justify-content:center;}
 .land-hero-inner{max-width:900px;width:100%;text-align:center;}

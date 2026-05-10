@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { supabase } from '../lib/supabase.js';
 import { useTheme } from '../hooks/useTheme.js';
+import { getPubName, setPubName } from '../lib/pubname.js';
 
 /* ── Stat helpers ─────────────────────────────────────────────── */
 function calcStats(allTournaments, userId) {
@@ -73,6 +74,11 @@ export default function ProfilePage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting,      setDeleting]      = useState(false);
 
+  // Public username
+  const [pubname,        setPubnameState]   = useState('');
+  const [editingUsername,setEditingUsername]= useState(false);
+  const [usernameDraft,  setUsernameDraft]  = useState('');
+
   // Socials stored in localStorage per user
   const [twitch,  setTwitch]  = useState('');
   const [youtube, setYoutube] = useState('');
@@ -81,7 +87,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!isSignedIn) { navigate('/'); return; }
-    // Load saved socials
+    // Load saved pubname and socials
+    setPubnameState(getPubName(user));
     const saved = JSON.parse(localStorage.getItem(`socials_${user.id}`) || '{}');
     setTwitch(saved.twitch || ''); setYoutube(saved.youtube || '');
 
@@ -142,8 +149,10 @@ export default function ProfilePage() {
         <nav className="prof-nav">
           <Link to="/" className="prof-logo">🚀 RL Tournament</Link>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <button className="prof-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-              {theme === 'dark' ? '☀️' : '🌙'}
+            <button className="theme-switch" onClick={toggleTheme} title="Toggle dark / light mode">
+              <span className="ts-icon" style={{opacity:theme==='light'?1:.45}}>☀️</span>
+              <span className="ts-track"><span className="ts-thumb"/></span>
+              <span className="ts-icon" style={{opacity:theme==='dark'?1:.45}}>🌙</span>
             </button>
             <button className="prof-signout" onClick={handleSignOut}>Sign Out</button>
           </div>
@@ -159,7 +168,10 @@ export default function ProfilePage() {
                 : <span>{(user?.fullName||user?.username||'?')[0].toUpperCase()}</span>}
             </div>
             <div className="prof-info" style={{flex:1}}>
-              <h1 className="prof-name">{user?.fullName || user?.username}</h1>
+              <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:4}}>
+                <h1 className="prof-name" style={{margin:0}}>{pubname}</h1>
+                <button className="prof-edit-username" onClick={()=>{setUsernameDraft(pubname);setEditingUsername(true);}}>✏️ Edit</button>
+              </div>
               <p className="prof-email">{user?.primaryEmailAddress?.emailAddress}</p>
               {/* Socials display */}
               <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6,flexWrap:'wrap'}}>
@@ -256,6 +268,25 @@ export default function ProfilePage() {
           )}
         </div>
 
+        {/* ── Edit Username Modal ── */}
+        {editingUsername && (
+          <div className="confirm-overlay" onClick={e=>{if(e.target===e.currentTarget)setEditingUsername(false);}}>
+            <div className="confirm-modal" style={{borderColor:'rgba(0,212,255,.25)'}}>
+              <div style={{fontFamily:'Orbitron,sans-serif',fontSize:'.6rem',color:'var(--cyan)',letterSpacing:'1.5px',textTransform:'uppercase',marginBottom:6}}>Public Username</div>
+              <h2 style={{fontFamily:'Orbitron,sans-serif',fontSize:'1.1rem',fontWeight:700,marginBottom:6}}>✏️ Edit Username</h2>
+              <p className="confirm-desc" style={{marginBottom:20}}>This is what other players see in tournaments, RSVPs, and the standings. Your real name stays private.</p>
+              <input className="social-input" placeholder="Your public username"
+                value={usernameDraft} onChange={e=>setUsernameDraft(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter'&&usernameDraft.trim()){setPubName(user.id,usernameDraft);setPubnameState(usernameDraft.trim());setEditingUsername(false);}}}
+                maxLength={32} autoFocus/>
+              <div className="confirm-btns" style={{marginTop:20}}>
+                <button className="confirm-cancel" onClick={()=>setEditingUsername(false)}>Cancel</button>
+                <button className="confirm-end" disabled={!usernameDraft.trim()} onClick={()=>{setPubName(user.id,usernameDraft);setPubnameState(usernameDraft.trim());setEditingUsername(false);}}>Save ✓</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Edit Socials Modal ── */}
         {editingSocials && (
           <div className="confirm-overlay" onClick={e=>{if(e.target===e.currentTarget)setEditingSocials(false);}}>
@@ -315,8 +346,18 @@ a{color:inherit;text-decoration:none;}
 .prof-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--border);background:var(--nav-bg);backdrop-filter:blur(12px);}
 .prof-logo{font-family:"Orbitron",sans-serif;font-size:.95rem;font-weight:900;color:var(--cyan);letter-spacing:1px;}
 .prof-signout{font-family:"Rajdhani",sans-serif;font-weight:700;font-size:.85rem;text-transform:uppercase;padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}
-.prof-theme-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:rgba(255,255,255,.06);font-size:.95rem;cursor:pointer;transition:all .18s;flex-shrink:0;}
-.prof-theme-btn:hover{border-color:var(--cyan);background:rgba(0,212,255,.1);transform:scale(1.1);}
+.prof-edit-username{font-family:"Rajdhani",sans-serif;font-weight:700;font-size:.75rem;text-transform:uppercase;padding:3px 9px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+.prof-edit-username:hover{color:var(--cyan);border-color:rgba(0,212,255,.3);}
+
+/* ── Theme toggle switch (shared) ── */
+.theme-switch{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:20px;padding:4px 10px;cursor:pointer;transition:border-color .18s;flex-shrink:0;}
+.theme-switch:hover{border-color:var(--cyan);}
+[data-theme="light"] .theme-switch{background:rgba(0,0,0,.04);}
+.ts-track{position:relative;display:flex;align-items:center;width:36px;height:20px;border-radius:10px;background:rgba(0,0,0,.3);transition:background .2s;flex-shrink:0;}
+[data-theme="light"] .ts-track{background:rgba(0,100,180,.2);}
+.ts-thumb{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--cyan);transition:transform .2s;transform:translateX(16px);}
+[data-theme="light"] .ts-thumb{transform:translateX(0);}
+.ts-icon{font-size:.82rem;line-height:1;}
 
 .prof-content{max-width:900px;margin:0 auto;padding:36px 24px 60px;}
 .prof-header{display:flex;align-items:flex-start;gap:20px;margin-bottom:24px;padding:24px;background:var(--card);border:1px solid var(--border);border-radius:16px;flex-wrap:wrap;}
@@ -364,8 +405,10 @@ a{color:inherit;text-decoration:none;}
 .end-btn:hover{background:rgba(255,71,87,.15);}
 
 .social-label{display:flex;align-items:center;gap:6px;font-family:"Rajdhani",sans-serif;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
-.social-input{width:100%;background:#0b1120;border:1px solid rgba(0,210,255,.13);border-radius:7px;padding:9px 13px;color:#dde4f0;font-family:"Rajdhani",sans-serif;font-size:.9rem;margin-bottom:4px;}
-.social-input:focus{outline:none;border-color:#00d4ff;box-shadow:0 0 0 2px rgba(0,212,255,.1);}
+.social-input{width:100%;background:var(--surf);border:1px solid var(--border);border-radius:7px;padding:9px 13px;color:var(--text);font-family:"Rajdhani",sans-serif;font-size:.9rem;margin-bottom:4px;}
+.social-input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,212,255,.1);}
+[data-theme="light"] .confirm-overlay{background:rgba(0,0,0,.45);}
+[data-theme="light"] .prof{background-image:radial-gradient(ellipse 80% 50% at 10% -10%,rgba(0,150,210,.04),transparent);}
 
 .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:600;padding:18px;}
 .confirm-modal{background:var(--card);border:1px solid rgba(255,71,87,.3);border-radius:16px;padding:32px;max-width:440px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.6);}
